@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ofertão Admin</title>
+<style>
+  :root { --azul: #123a8c; --azul-escuro: #0b2560; --laranja: #f26b1d; --fundo: #f3f5fa;
+          --borda: #e3e7ef; --suave: #6b7489; --verde: #1a9b55; --vermelho: #c0392b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: var(--fundo); color: #1c2333; }
+  header { background: var(--azul-escuro); color: #fff; padding: 14px 20px; }
+  header h1 { margin: 0; font-size: 1.3rem; }
+  header span { color: var(--laranja); }
+  main { max-width: 860px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+  .card { background: #fff; border: 1px solid var(--borda); border-radius: 14px; padding: 16px; }
+  h2 { margin: 0 0 12px; font-size: 1.05rem; color: var(--azul); }
+  label { display: block; font-size: .85rem; color: var(--suave); margin: 10px 0 4px; }
+  input, select { width: 100%; padding: 9px 10px; border: 1px solid var(--borda); border-radius: 8px; font-size: .95rem; }
+  button { margin-top: 14px; width: 100%; border: 0; border-radius: 10px; padding: 12px; font-weight: 600;
+           font-size: 1rem; background: var(--laranja); color: #fff; cursor: pointer; }
+  button:disabled { opacity: .5; }
+  .msg { margin-top: 10px; font-size: .9rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--borda); }
+  .processado { color: var(--verde); } .expirado, .sem_lojas { color: var(--vermelho); }
+  .dica { font-size: .8rem; color: var(--suave); }
+</style>
+</head>
+<body>
+<header><h1>Ofer<span>tão</span> · Encartes</h1></header>
+<main>
+  <div class="card">
+    <h2>Enviar encarte de ofertas</h2>
+    <p class="dica">PDF ou imagem do tabloide oficial da rede. A IA lê os produtos, os preços e a validade,
+      e aplica as ofertas a todas as lojas da rede na Grande Natal.</p>
+    <form id="form">
+      <label for="rede">Rede</label>
+      <select id="rede" required></select>
+      <label for="arquivo">Arquivo do encarte</label>
+      <input type="file" id="arquivo" accept="application/pdf,image/*" required>
+      <label for="url">De onde veio (link oficial, opcional)</label>
+      <input type="url" id="url" placeholder="https://...">
+      <label for="token">Token de administrador</label>
+      <input type="password" id="token" required autocomplete="current-password">
+      <button id="btn">Enviar e ler com IA</button>
+      <div class="msg" id="msg"></div>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Encartes processados</h2>
+    <table><thead><tr><th>Rede</th><th>Validade</th><th>Itens</th><th>Situação</th></tr></thead>
+      <tbody id="lista"></tbody></table>
+  </div>
+</main>
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const dia = d => d ? new Date(d).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "?";
+try { document.getElementById("token").value = sessionStorage.getItem("ofertao_token") || ""; } catch {}
+
+async function carregar() {
+  const redes = await (await fetch("/api/redes")).json();
+  document.getElementById("rede").innerHTML =
+    redes.map(r => `<option value="${esc(r.rede)}">${esc(r.rede)} (${r.lojas} lojas)</option>`).join("");
+  const encartes = await (await fetch("/api/encartes")).json();
+  document.getElementById("lista").innerHTML = encartes.map(e =>
+    `<tr><td>${esc(e.rede)}</td><td>${dia(e.valido_de)} a ${dia(e.valido_ate)}</td>
+     <td>${e.itens_extraidos}</td><td class="${esc(e.situacao)}">${esc(e.situacao)}</td></tr>`).join("")
+    || '<tr><td colspan="4" class="dica">Nenhum encarte ainda.</td></tr>';
+}
+document.getElementById("form").onsubmit = async e => {
+  e.preventDefault();
+  const btn = document.getElementById("btn"), msg = document.getElementById("msg");
+  const token = document.getElementById("token").value;
+  try { sessionStorage.setItem("ofertao_token", token); } catch {}
+  const fd = new FormData();
+  fd.append("rede", document.getElementById("rede").value);
+  fd.append("arquivo", document.getElementById("arquivo").files[0]);
+  const url = document.getElementById("url").value.trim();
+  if (url) fd.append("url_origem", url);
+  btn.disabled = true; msg.textContent = "Lendo o encarte com IA (pode levar 1 a 2 minutos)...";
+  try {
+    const r = await fetch("/api/encartes", { method: "POST", body: fd, headers: { "X-Token": token } });
+    const j = await r.json();
+    if (!r.ok) msg.textContent = `❌ ${j.detail}`;
+    else if (j.situacao === "processado") msg.textContent = `✅ ${j.itens} ofertas aplicadas em ${j.lojas} lojas (válido até ${dia(j.valido_ate)}).`;
+    else if (j.situacao === "expirado") msg.textContent = `⚠️ Encarte vencido (até ${dia(j.valido_ate)}): ${j.itens} itens lidos, nenhum preço aplicado.`;
+    else if (j.situacao === "repetido") msg.textContent = "ℹ️ Esse encarte já foi processado.";
+    else msg.textContent = `⚠️ Nenhuma loja dessa rede cadastrada; ${j.itens} itens lidos.`;
+    carregar();
+  } catch { msg.textContent = "❌ Falha de conexão."; }
+  btn.disabled = false;
+};
+carregar();
+</script>
+</body>
+</html>

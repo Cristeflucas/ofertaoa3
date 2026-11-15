@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ofertão</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --azul: #123a8c; --azul-escuro: #0b2560; --laranja: #f26b1d; --laranja-claro: #fff1e8;
+    --verde: #1a9b55; --fundo: #f3f5fa; --card: #fff; --texto: #1c2333; --suave: #6b7489;
+    --borda: #e3e7ef;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: var(--fundo); color: var(--texto); }
+  header { background: var(--azul-escuro); color: #fff; padding: 14px 20px; display: flex;
+           align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 1.5rem; }
+  header h1 span { color: var(--laranja); }
+  header small { color: #c7d2ee; }
+  .status { font-size: .8rem; color: #c7d2ee; margin-left: auto; }
+  main { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px;
+         max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border-radius: 14px; padding: 16px; border: 1px solid var(--borda);
+          box-shadow: 0 2px 8px rgba(18,58,140,.06); }
+  .card + .card { margin-top: 16px; }
+  h2 { margin: 0 0 10px; font-size: 1.05rem; color: var(--azul); }
+  input[type=search] { width: 100%; padding: 10px 12px; border: 1px solid var(--borda);
+                       border-radius: 10px; font-size: .95rem; }
+  .sugestoes { max-height: 260px; overflow: auto; margin-top: 8px; }
+  .grupo-tit { font-size: .72rem; font-weight: 700; color: var(--azul); margin: 10px 0 2px; text-transform: uppercase; }
+  .sug { display: flex; justify-content: space-between; align-items: center; padding: 7px 4px;
+         border-bottom: 1px solid var(--borda); font-size: .9rem; cursor: pointer; }
+  .sug:hover { background: var(--laranja-claro); }
+  .sug small { color: var(--suave); }
+  .cart-item { display: flex; align-items: center; gap: 8px; padding: 6px 0;
+               border-bottom: 1px solid var(--borda); font-size: .9rem; }
+  .cart-item .nome { flex: 1; }
+  .cart-item input { width: 58px; padding: 4px; border: 1px solid var(--borda); border-radius: 6px; }
+  .cart-item button { border: 0; background: none; color: #c0392b; cursor: pointer; font-size: 1.1rem; }
+  .vazio { color: var(--suave); font-size: .9rem; }
+  .btn { width: 100%; border: 0; border-radius: 12px; padding: 13px; font-size: 1rem; font-weight: 600;
+         background: var(--laranja); color: #fff; cursor: pointer; margin-top: 12px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.sec { background: #fff; color: var(--azul); border: 1px solid var(--azul); margin-top: 8px;
+             padding: 8px; font-size: .9rem; }
+  .row { display: flex; gap: 8px; align-items: center; font-size: .85rem; color: var(--suave); margin-top: 8px; }
+  .row input[type=number] { width: 70px; padding: 4px; border: 1px solid var(--borda); border-radius: 6px; }
+  #mapa { height: 460px; border-radius: 14px; border: 1px solid var(--borda); }
+  .explicacao { background: var(--laranja-claro); border-left: 4px solid var(--laranja);
+                padding: 12px; border-radius: 8px; font-size: .92rem; line-height: 1.45; }
+  .ranking { margin-top: 12px; display: grid; gap: 8px; }
+  .merc { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center;
+          padding: 10px; border: 1px solid var(--borda); border-radius: 10px; cursor: pointer; }
+  .merc.top { border-color: var(--verde); background: #eefaf3; }
+  .merc .pos { font-weight: 700; color: var(--azul); text-align: center; }
+  .merc .info small { color: var(--suave); display: block; }
+  .merc .valor { text-align: right; font-weight: 700; color: var(--laranja); }
+  .merc .valor small { display: block; font-weight: 400; color: var(--suave); font-size: .75rem; }
+  .falta { color: #c0392b !important; }
+  .detalhe { font-size: .85rem; margin-top: 6px; }
+  .detalhe td { padding: 2px 6px; vertical-align: top; }
+  .fonte { font-size: .7rem; color: var(--suave); }
+  .tag { background: var(--verde); color: #fff; border-radius: 4px; padding: 0 4px; font-size: .7rem; }
+  .cupom { margin-top: 8px; padding: 8px; border: 1px dashed var(--azul); border-radius: 10px; font-size: .82rem; }
+  .cupom input[type=file], .cupom textarea { width: 100%; margin: 6px 0 0; }
+  .cupom textarea { min-height: 60px; border: 1px solid var(--borda); border-radius: 8px; padding: 6px; }
+  .msg { font-size: .82rem; margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ofer<span>tão</span></h1>
+  <small>O melhor mercado da Grande Natal para a sua feira</small>
+  <span class="status" id="status"></span>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>1. Monte sua feira</h2>
+      <input type="search" id="busca" placeholder="Buscar (ex: arroz, leite, código de barras)">
+      <div class="sugestoes" id="sugestoes"></div>
+    </div>
+    <div class="card">
+      <h2>Carrinho</h2>
+      <div id="carrinho"><p class="vazio">Seu carrinho está vazio.</p></div>
+      <div class="row">
+        Raio <input type="number" id="raio" value="15" min="1"> km
+        · R$/km <input type="number" id="custoKm" value="0.80" step="0.1" min="0">
+      </div>
+      <button class="btn" id="btnComparar" disabled>Encontrar o melhor mercado</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>2. Sua localização <small style="color:var(--suave);font-weight:400">(clique no mapa para ajustar · clique numa loja para enviar cupom)</small></h2>
+      <div id="mapa"></div>
+      <button class="btn sec" id="btnGps">Usar minha localização</button>
+    </div>
+    <div class="card" id="resultado" hidden>
+      <h2>3. Resultado</h2>
+      <div class="explicacao" id="explicacao"></div>
+      <div class="ranking" id="ranking"></div>
+    </div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const FONTES = { atacadao_online: "loja online Atacadão", cupom_fiscal: "cupom fiscal", dono: "informado pela loja", encarte: "encarte de ofertas" };
+const carrinho = new Map();  // "g:1" / "p:9" -> {tipo, id, nome, quantidade}
+let local = { lat: -5.8275, lon: -35.2050 };  // Lagoa Nova, Natal
+
+// ---- Mapa ----
+const mapa = L.map("mapa").setView([local.lat, local.lon], 12);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19, attribution: "&copy; colaboradores do OpenStreetMap"
+}).addTo(mapa);
+const marcadorUser = L.marker([local.lat, local.lon], {
+  icon: L.divIcon({ html: "📍", className: "", iconSize: [24, 24], iconAnchor: [12, 24] })
+}).addTo(mapa).bindPopup("Você");
+const marcadores = new Map();
+function moverUsuario(lat, lon) { local = { lat, lon }; marcadorUser.setLatLng([lat, lon]); }
+mapa.on("click", e => moverUsuario(e.latlng.lat, e.latlng.lng));
+document.getElementById("btnGps").onclick = () => navigator.geolocation?.getCurrentPosition(
+  p => { moverUsuario(p.coords.latitude, p.coords.longitude); mapa.setView([local.lat, local.lon], 13); },
+  () => alert("Não foi possível obter sua localização."));
+const pino = cor => L.divIcon({ className: "", iconSize: [14, 14],
+  html: `<div style="width:14px;height:14px;border-radius:50%;background:${cor};border:2px solid #fff;box-shadow:0 0 3px #0006"></div>` });
+
+function popupLoja(m) {
+  return `<b>${esc(m.nome)}</b><br>${esc([m.endereco, m.cidade].filter(Boolean).join(" · "))}
+    <div class="cupom" data-mercado="${m.id}">
+      <b>Comprou aqui?</b> Envie a foto do cupom fiscal e ajude todo mundo com preços reais.
+      <input type="file" accept="image/*">
+      <textarea placeholder="...ou cole o texto do cupom"></textarea>
+      <button class="btn sec" onclick="enviarCupom(this)">Enviar cupom</button>
+      <div class="msg"></div>
+    </div>`;
+}
+async function carregarMercados() {
+  const mercados = await (await fetch("/api/mercados")).json();
+  for (const m of mercados) {
+    marcadores.set(m.id, L.marker([m.lat, m.lon], { icon: pino("#123a8c") })
+      .bindPopup(popupLoja(m), { maxWidth: 280 }).addTo(mapa));
+  }
+}
+async function enviarCupom(btn) {
+  const box = btn.closest(".cupom"), msg = box.querySelector(".msg");
+  const foto = box.querySelector("input[type=file]").files[0];
+  const texto = box.querySelector("textarea").value.trim();
+  if (!foto && !texto) { msg.textContent = "Escolha a foto ou cole o texto."; return; }
+  const fd = new FormData();
+  if (foto) fd.append("foto", foto);
+  if (texto) fd.append("texto", texto);
+  btn.disabled = true; msg.textContent = "Lendo o cupom...";
+  try {
+    const r = await fetch(`/api/mercados/${box.dataset.mercado}/cupom`, { method: "POST", body: fd });
+    const j = await r.json();
+    msg.textContent = r.ok ? `✅ ${j.itens_gravados} preços gravados. Obrigado!` : `❌ ${j.detail}`;
+    if (r.ok) carregarStatus();
+  } catch { msg.textContent = "❌ Falha de conexão."; }
+  btn.disabled = false;
+}
+
+// ---- Itens / carrinho ----
+async function carregarStatus() {
+  const s = await (await fetch("/api/status")).json();
+  document.getElementById("status").textContent =
+    `${s.lojas} lojas reais · ${s.lojas_com_preco} com preços · ${s.produtos} produtos`;
+}
+async function buscar(q) {
+  const r = await (await fetch("/api/itens" + (q ? `?q=${encodeURIComponent(q)}` : ""))).json();
+  let html = "";
+  if (r.genericos.length) html += '<div class="grupo-tit">Qualquer marca (pega a mais barata)</div>' +
+    r.genericos.map(g => `<div class="sug" data-tipo="g" data-id="${g.id}" data-nome="${esc(g.nome)}"><span>${esc(g.nome)}<br><small>${esc(g.categoria)}</small></span><b>+</b></div>`).join("");
+  if (r.produtos.length) html += '<div class="grupo-tit">Produto específico</div>' +
+    r.produtos.map(p => `<div class="sug" data-tipo="p" data-id="${p.id}" data-nome="${esc(p.nome)}"><span>${esc(p.nome)}<br><small>${p.ean ? "EAN " + esc(p.ean) : ""}</small></span><b>+</b></div>`).join("");
+  document.getElementById("sugestoes").innerHTML = html || '<p class="vazio">Nada encontrado.</p>';
+}
+let tBusca;
+document.getElementById("busca").oninput = e => {
+  clearTimeout(tBusca); tBusca = setTimeout(() => buscar(e.target.value.trim()), 250);
+};
+document.getElementById("sugestoes").onclick = e => {
+  const el = e.target.closest(".sug"); if (!el) return;
+  const chave = `${el.dataset.tipo}:${el.dataset.id}`;
+  const atual = carrinho.get(chave);
+  carrinho.set(chave, { tipo: el.dataset.tipo, id: +el.dataset.id, nome: el.dataset.nome,
+                        quantidade: (atual?.quantidade || 0) + 1 });
+  renderCarrinho();
+};
+function renderCarrinho() {
+  const div = document.getElementById("carrinho");
+  document.getElementById("btnComparar").disabled = carrinho.size === 0;
+  if (!carrinho.size) { div.innerHTML = '<p class="vazio">Seu carrinho está vazio.</p>'; return; }
+  div.innerHTML = [...carrinho.entries()].map(([k, c]) =>
+    `<div class="cart-item"><span class="nome">${esc(c.nome)}<br><small class="vazio">${c.tipo === "g" ? "qualquer marca" : "produto específico"}</small></span>
+     <input type="number" min="0.1" step="0.5" value="${c.quantidade}" data-k="${k}">
+     <button data-rm="${k}" title="Remover">×</button></div>`).join("");
+}
+document.getElementById("carrinho").oninput = e => {
+  const k = e.target.dataset.k; if (k) carrinho.get(k).quantidade = Math.max(0.1, +e.target.value || 1);
+};
+document.getElementById("carrinho").onclick = e => {
+  const k = e.target.dataset.rm; if (k) { carrinho.delete(k); renderCarrinho(); }
+};
+
+// ---- Recomendação ----
+document.getElementById("btnComparar").onclick = async () => {
+  const btn = document.getElementById("btnComparar");
+  btn.disabled = true; btn.textContent = "Comparando...";
+  try {
+    const resp = await fetch("/api/recomendar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lat: local.lat, lon: local.lon,
+        raio_km: +document.getElementById("raio").value,
+        custo_km: +document.getElementById("custoKm").value,
+        itens: [...carrinho.values()].map(c => ({ [c.tipo === "g" ? "grupo_id" : "produto_id"]: c.id, quantidade: c.quantidade })),
+      }),
+    });
+    renderResultado(await resp.json());
+  } finally { btn.disabled = false; btn.textContent = "Encontrar o melhor mercado"; }
+};
+function renderResultado(r) {
+  document.getElementById("resultado").hidden = false;
+  document.getElementById("explicacao").textContent = r.explicacao;
+  marcadores.forEach(mk => mk.setIcon(pino("#123a8c")));
+  r.divisao?.partes.forEach(p => marcadores.get(p.mercado_id)?.setIcon(pino("#f26b1d")));
+  if (r.melhor) {
+    marcadores.get(r.melhor.mercado_id)?.setIcon(pino("#1a9b55"));
+    mapa.fitBounds([[local.lat, local.lon], [r.melhor.lat, r.melhor.lon]], { padding: [60, 60], maxZoom: 14 });
+  }
+  const data = d => new Date(d).toLocaleDateString("pt-BR");
+  document.getElementById("ranking").innerHTML = r.ranking.map((m, i) => `
+    <div class="merc ${i === 0 ? "top" : ""}" data-id="${m.mercado_id}">
+      <div class="pos">${i + 1}º</div>
+      <div class="info"><b>${esc(m.nome)}</b>
+        <small>${esc(m.cidade || "Grande Natal")} · ${m.distancia_km.toFixed(1)} km</small>
+        ${m.faltantes.length ? `<small class="falta">Sem preço: ${esc(m.faltantes.join(", "))}</small>` : ""}
+        <table class="detalhe" hidden>${m.itens.map(it =>
+          `<tr><td>${it.quantidade}× ${esc(it.produto)} ${it.promocao ? '<span class="tag">promo</span>' : ""}
+             <br><span class="fonte">${esc(FONTES[it.fonte] || it.fonte)} · ${data(it.coletado_em)}</span></td>
+             <td>${brl(it.subtotal)}</td></tr>`).join("")}
+          <tr><td>Deslocamento</td><td>${brl(m.custo_deslocamento)}</td></tr></table>
+      </div>
+      <div class="valor">${brl(m.custo_total)}<small>feira ${brl(m.subtotal_carrinho)}</small></div>
+    </div>`).join("");
+}
+document.getElementById("ranking").onclick = e => {
+  const el = e.target.closest(".merc"); if (!el) return;
+  const t = el.querySelector(".detalhe"); t.hidden = !t.hidden;
+  marcadores.get(+el.dataset.id)?.openPopup();
+};
+
+carregarStatus(); carregarMercados(); buscar("");
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+[project]
+name = "ofertao"
+version = "0.1.0"
+description = "Ofertão - descubra o melhor mercadinho da Grande Natal para a sua feira"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlmodel>=0.0.22",
+    "httpx>=0.28.1",
+    "anthropic>=2.6.0",
+    "python-multipart>=0.0.33",
+    "pymupdf>=2.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

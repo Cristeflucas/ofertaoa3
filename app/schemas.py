@@ -89,6 +89,7 @@ class PrecoDono(BaseModel):
     nome: str
     preco: float = Field(gt=0)
     promocao: bool = False
+    item_generico: str | None = None  # slug do item da feira, quando o nome não basta para encaixar
 
 
 class PrecosDono(BaseModel):

@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, col, func, or_, select
 
-from app.catalogo import sincronizar_catalogo
+from app.catalogo import REGRAS_POR_SLUG, sincronizar_catalogo
 from app.coletores import cupom, encarte
 from app.coletores.vtex import salvar_preco, salvar_produto
 from app.database import criar_tabelas, engine, get_session
@@ -148,6 +148,18 @@ def enviar_encarte(
     return r
 
 
+def _gravar_precos_dono(session: Session, mercado_ids: list[int], corpo: PrecosDono) -> dict:
+    grupos = sincronizar_catalogo(session)
+    for item in corpo.itens:
+        prod = salvar_produto(session, item.ean, item.nome, None, None, grupos)
+        if prod.grupo_id is None and item.item_generico in REGRAS_POR_SLUG:
+            prod.grupo_id = grupos[item.item_generico]
+        for mercado_id in mercado_ids:
+            salvar_preco(session, mercado_id, prod.id, item.preco, "dono", item.promocao)
+    session.commit()
+    return {"itens_gravados": len(corpo.itens), "lojas": len(mercado_ids)}
+
+
 @app.post("/api/mercados/{mercado_id}/precos")
 def precos_do_dono(
     mercado_id: int,
@@ -158,9 +170,18 @@ def precos_do_dono(
     """Painel do dono: a loja informa seus preços. Protegido por OFERTAO_ADMIN_TOKEN."""
     if not session.get(Mercado, mercado_id):
         raise HTTPException(404, "Loja não encontrada")
-    grupos = sincronizar_catalogo(session)
-    for item in corpo.itens:
-        prod = salvar_produto(session, item.ean, item.nome, None, None, grupos)
-        salvar_preco(session, mercado_id, prod.id, item.preco, "dono", item.promocao)
-    session.commit()
-    return {"itens_gravados": len(corpo.itens)}
+    return _gravar_precos_dono(session, [mercado_id], corpo)
+
+
+@app.post("/api/redes/{rede}/precos")
+def precos_da_rede(
+    rede: str,
+    corpo: PrecosDono,
+    session: Session = Depends(get_session),
+    _: None = Depends(_exigir_token),
+):
+    """Cadastro manual de preços válidos em todas as lojas de uma rede (ex.: copiados do encarte)."""
+    ids = session.exec(select(Mercado.id).where(Mercado.rede == rede)).all()
+    if not ids:
+        raise HTTPException(404, "Nenhuma loja dessa rede")
+    return _gravar_precos_dono(session, list(ids), corpo)

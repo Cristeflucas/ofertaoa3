@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ofertão</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <style>
   :root {
     --azul: #123a8c; --azul-escuro: #0b2560; --laranja: #f26b1d; --laranja-claro: #fff1e8;
@@ -22,7 +23,8 @@
   .status { font-size: .8rem; color: #c7d2ee; margin-left: auto; }
   main { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px;
          max-width: 1400px; margin: 0 auto; }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  main > section { min-width: 0; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); padding: 12px; } }
   .card { background: var(--card); border-radius: 14px; padding: 16px; border: 1px solid var(--borda);
           box-shadow: 0 2px 8px rgba(18,58,140,.06); }
   .card + .card { margin-top: 16px; }
@@ -48,7 +50,40 @@
              padding: 8px; font-size: .9rem; }
   .row { display: flex; gap: 8px; align-items: center; font-size: .85rem; color: var(--suave); margin-top: 8px; }
   .row input[type=number] { width: 70px; padding: 4px; border: 1px solid var(--borda); border-radius: 6px; }
-  #mapa { height: 460px; border-radius: 14px; border: 1px solid var(--borda); }
+  #mapa { height: min(520px, 62vh); min-height: 340px; border-radius: 14px; border: 1px solid var(--borda);
+          background: #eef1f6; }
+  /* Mapa base mais suave, para os pinos se destacarem */
+  .mapa-base { filter: saturate(.55) brightness(1.05) contrast(.92); }
+  /* Você: ponto azul com pulso */
+  .voce { position: relative; }
+  .voce-ponto { position: absolute; inset: 4px; border-radius: 50%; background: #2f6bff;
+                border: 3px solid #fff; box-shadow: 0 1px 6px rgba(11,37,96,.45); }
+  .voce-pulso { position: absolute; inset: 0; border-radius: 50%; background: rgba(47,107,255,.35);
+                animation: pulso 2s ease-out infinite; }
+  @keyframes pulso { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.6); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .voce-pulso { animation: none; transform: scale(1.6); opacity: .35; } }
+  /* Lojas: pino com carrinho */
+  .pino { filter: drop-shadow(0 2px 3px rgba(11,37,96,.35)); transition: transform .15s; transform-origin: 50% 100%; }
+  .pino:hover { transform: scale(1.12); }
+  .pino-badge { position: absolute; top: -7px; right: -9px; background: #fff; color: var(--verde);
+                border: 2px solid var(--verde); border-radius: 999px; font: 700 11px/1 system-ui, sans-serif;
+                padding: 2px 4px; }
+  .cluster div { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+                 background: var(--azul); color: #fff; font: 700 13px system-ui, sans-serif;
+                 border: 3px solid #fff; box-shadow: 0 0 0 4px rgba(18,58,140,.25), 0 2px 6px rgba(11,37,96,.35); }
+  /* Popup */
+  .leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: 0 6px 24px rgba(11,37,96,.22); }
+  .leaflet-popup-content { margin: 12px 14px; font-size: .88rem; }
+  .pop-tit { font-weight: 700; color: var(--azul-escuro); font-size: .98rem; }
+  .pop-rede { display: inline-block; margin: 4px 0; background: #e8eefc; color: var(--azul); border-radius: 999px;
+              padding: 1px 8px; font-size: .72rem; font-weight: 600; }
+  .pop-end { color: var(--suave); font-size: .8rem; }
+  /* Legenda */
+  .legenda { background: #fff; border-radius: 10px; padding: 8px 10px; font-size: .75rem; color: var(--texto);
+             box-shadow: 0 2px 8px rgba(11,37,96,.18); line-height: 1.7; }
+  .legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px;
+               border: 2px solid #fff; box-shadow: 0 0 0 1px #0002; vertical-align: -1px; }
+  @media (max-width: 600px) { .legenda { font-size: .7rem; padding: 6px 8px; } }
   .explicacao { background: var(--laranja-claro); border-left: 4px solid var(--laranja);
                 padding: 12px; border-radius: 8px; font-size: .92rem; line-height: 1.45; }
   .ranking { margin-top: 12px; display: grid; gap: 8px; }
@@ -110,6 +145,7 @@
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -118,24 +154,71 @@ const carrinho = new Map();  // "g:1" / "p:9" -> {tipo, id, nome, quantidade}
 let local = { lat: -5.8275, lon: -35.2050 };  // Lagoa Nova, Natal
 
 // ---- Mapa ----
-const mapa = L.map("mapa").setView([local.lat, local.lon], 12);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19, attribution: "&copy; colaboradores do OpenStreetMap"
+const mapa = L.map("mapa", { zoomControl: false }).setView([local.lat, local.lon], 12);
+L.control.zoom({ position: "bottomright" }).addTo(mapa);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19, className: "mapa-base",
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(mapa);
+
 const marcadorUser = L.marker([local.lat, local.lon], {
-  icon: L.divIcon({ html: "📍", className: "", iconSize: [24, 24], iconAnchor: [12, 24] })
-}).addTo(mapa).bindPopup("Você");
+  draggable: true, zIndexOffset: 1000, keyboard: false,
+  icon: L.divIcon({ className: "voce", iconSize: [22, 22], iconAnchor: [11, 11],
+                    html: '<div class="voce-pulso"></div><div class="voce-ponto"></div>' })
+}).addTo(mapa).bindTooltip("Você está aqui · arraste para ajustar", { direction: "top", offset: [0, -12] });
+marcadorUser.on("dragend", e => { const p = e.target.getLatLng(); moverUsuario(p.lat, p.lng); });
+
 const marcadores = new Map();
-function moverUsuario(lat, lon) { local = { lat, lon }; marcadorUser.setLatLng([lat, lon]); }
+const grupoLojas = L.markerClusterGroup({
+  showCoverageOnHover: false, maxClusterRadius: 42, spiderfyOnMaxZoom: true,
+  iconCreateFunction: c => L.divIcon({ className: "cluster", iconSize: [38, 38],
+                                       html: `<div>${c.getChildCount()}</div>` }),
+}).addTo(mapa);
+const camadaDestaque = L.layerGroup().addTo(mapa);  // lojas do resultado ficam fora dos grupos
+let rota = null;
+
+function moverUsuario(lat, lon) {
+  local = { lat, lon };
+  marcadorUser.setLatLng([lat, lon]);
+  if (rota) { rota.remove(); rota = null; }  // resultado antigo não vale mais para o novo ponto
+}
 mapa.on("click", e => moverUsuario(e.latlng.lat, e.latlng.lng));
 document.getElementById("btnGps").onclick = () => navigator.geolocation?.getCurrentPosition(
-  p => { moverUsuario(p.coords.latitude, p.coords.longitude); mapa.setView([local.lat, local.lon], 13); },
+  p => { moverUsuario(p.coords.latitude, p.coords.longitude); mapa.setView([local.lat, local.lon], 14); },
   () => alert("Não foi possível obter sua localização."));
-const pino = cor => L.divIcon({ className: "", iconSize: [14, 14],
-  html: `<div style="width:14px;height:14px;border-radius:50%;background:${cor};border:2px solid #fff;box-shadow:0 0 3px #0006"></div>` });
+
+const CORES = { normal: "#123a8c", melhor: "#1a9b55", dividir: "#f26b1d" };
+function pino(estado = "normal", rotulo = "") {
+  const g = estado === "melhor", w = g ? 38 : 28, h = g ? 50 : 37, cor = CORES[estado];
+  return L.divIcon({
+    className: "", iconSize: [w, h], iconAnchor: [w / 2, h - 1], popupAnchor: [0, -h + 6],
+    html: `<div class="pino" style="position:relative;width:${w}px;height:${h}px">
+      <svg viewBox="0 0 28 37" width="${w}" height="${h}" aria-hidden="true">
+        <path d="M14 36s12-11.6 12-21.5C26 7.6 20.6 2 14 2S2 7.6 2 14.5C2 24.4 14 36 14 36z"
+              fill="${cor}" stroke="#fff" stroke-width="2"/>
+        <g fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 9.5h2l1.6 7.2h7.2l1.5-5.2H11"/>
+        </g>
+        <circle cx="12.6" cy="19.3" r="1.2" fill="#fff"/><circle cx="18" cy="19.3" r="1.2" fill="#fff"/>
+      </svg>${rotulo ? `<span class="pino-badge">${rotulo}</span>` : ""}</div>`,
+  });
+}
+
+const legenda = L.control({ position: "topright" });
+legenda.onAdd = () => {
+  const d = L.DomUtil.create("div", "legenda");
+  d.innerHTML = `<div><i style="background:#2f6bff"></i>Você</div>
+    <div><i style="background:${CORES.normal}"></i>Mercado</div>
+    <div><i style="background:${CORES.melhor}"></i>Melhor opção</div>
+    <div><i style="background:${CORES.dividir}"></i>Dividir a compra</div>`;
+  return d;
+};
+legenda.addTo(mapa);
 
 function popupLoja(m) {
-  return `<b>${esc(m.nome)}</b><br>${esc([m.endereco, m.cidade].filter(Boolean).join(" · "))}
+  return `<div class="pop-tit">${esc(m.nome)}</div>
+    ${m.rede ? `<span class="pop-rede">${esc(m.rede)}</span>` : ""}
+    <div class="pop-end">${esc([m.endereco, m.bairro, m.cidade].filter(Boolean).join(" · "))}</div>
     <div class="cupom" data-mercado="${m.id}">
       <b>Comprou aqui?</b> Envie a foto do cupom fiscal e ajude todo mundo com preços reais.
       <input type="file" accept="image/*">
@@ -147,8 +230,10 @@ function popupLoja(m) {
 async function carregarMercados() {
   const mercados = await (await fetch("/api/mercados")).json();
   for (const m of mercados) {
-    marcadores.set(m.id, L.marker([m.lat, m.lon], { icon: pino("#123a8c") })
-      .bindPopup(popupLoja(m), { maxWidth: 280 }).addTo(mapa));
+    const mk = L.marker([m.lat, m.lon], { icon: pino(), title: m.nome })
+      .bindPopup(popupLoja(m), { maxWidth: 280 });
+    marcadores.set(m.id, mk);
+    grupoLojas.addLayer(mk);
   }
 }
 async function enviarCupom(btn) {
@@ -232,11 +317,23 @@ document.getElementById("btnComparar").onclick = async () => {
 function renderResultado(r) {
   document.getElementById("resultado").hidden = false;
   document.getElementById("explicacao").textContent = r.explicacao;
-  marcadores.forEach(mk => mk.setIcon(pino("#123a8c")));
-  r.divisao?.partes.forEach(p => marcadores.get(p.mercado_id)?.setIcon(pino("#f26b1d")));
+  // devolve os destaques anteriores aos grupos
+  camadaDestaque.eachLayer(mk => { mk.setIcon(pino()).setZIndexOffset(0); grupoLojas.addLayer(mk); });
+  camadaDestaque.clearLayers();
+  if (rota) { rota.remove(); rota = null; }
+  const destacar = (id, estado, rotulo) => {
+    const mk = marcadores.get(id);
+    if (!mk) return;
+    grupoLojas.removeLayer(mk);
+    mk.setIcon(pino(estado, rotulo)).setZIndexOffset(estado === "melhor" ? 900 : 500);
+    camadaDestaque.addLayer(mk);
+  };
+  r.divisao?.partes.forEach(p => destacar(p.mercado_id, "dividir"));
   if (r.melhor) {
-    marcadores.get(r.melhor.mercado_id)?.setIcon(pino("#1a9b55"));
-    mapa.fitBounds([[local.lat, local.lon], [r.melhor.lat, r.melhor.lon]], { padding: [60, 60], maxZoom: 14 });
+    destacar(r.melhor.mercado_id, "melhor", "1º");
+    rota = L.polyline([[local.lat, local.lon], [r.melhor.lat, r.melhor.lon]],
+      { color: CORES.melhor, weight: 4, opacity: .85, dashArray: "2 9", lineCap: "round" }).addTo(mapa);
+    mapa.fitBounds([[local.lat, local.lon], [r.melhor.lat, r.melhor.lon]], { padding: [70, 70], maxZoom: 15 });
   }
   const data = d => new Date(d).toLocaleDateString("pt-BR");
   document.getElementById("ranking").innerHTML = r.ranking.map((m, i) => `
@@ -257,7 +354,9 @@ function renderResultado(r) {
 document.getElementById("ranking").onclick = e => {
   const el = e.target.closest(".merc"); if (!el) return;
   const t = el.querySelector(".detalhe"); t.hidden = !t.hidden;
-  marcadores.get(+el.dataset.id)?.openPopup();
+  const mk = marcadores.get(+el.dataset.id);
+  if (mk && grupoLojas.hasLayer(mk)) grupoLojas.zoomToShowLayer(mk, () => mk.openPopup());
+  else mk?.openPopup();
 };
 
 carregarStatus(); carregarMercados(); buscar("");

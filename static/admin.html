@@ -26,13 +26,48 @@
   th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--borda); }
   .processado { color: var(--verde); } .expirado, .sem_lojas { color: var(--vermelho); }
   .dica { font-size: .8rem; color: var(--suave); }
+  .linha { display: grid; grid-template-columns: 1.2fr 1.6fr 92px auto 36px; gap: 6px; align-items: center;
+           padding: 8px 0; border-bottom: 1px solid var(--borda); }
+  .linha label { margin: 0; }
+  .promo { display: flex; gap: 4px; align-items: center; font-size: .8rem; color: var(--suave); white-space: nowrap; }
+  .promo input { width: auto; }
+  button.sec { margin-top: 10px; width: auto; padding: 8px 14px; font-size: .9rem; background: #fff;
+               color: var(--azul); border: 1px solid var(--borda); }
+  button.tirar { margin: 0; width: 36px; padding: 8px 0; font-size: .9rem; background: #fff;
+                 color: var(--vermelho); border: 1px solid var(--borda); }
+  .cab { display: grid; grid-template-columns: 1.2fr 1.6fr 92px auto 36px; gap: 6px; font-size: .75rem;
+         color: var(--suave); margin-top: 12px; }
+  @media (max-width: 640px) {
+    .cab { display: none; }
+    .linha { grid-template-columns: 1fr auto 36px; }
+    .linha .item, .linha .nome { grid-column: 1 / -1; }
+  }
 </style>
 </head>
 <body>
-<header><h1>Ofer<span>tão</span> · Encartes</h1></header>
+<header><h1>Ofer<span>tão</span> · Admin</h1></header>
 <main>
   <div class="card">
-    <h2>Enviar encarte de ofertas</h2>
+    <h2>Token de administrador</h2>
+    <p class="dica">O mesmo valor da variável OFERTAO_ADMIN_TOKEN do servidor. Vale para as duas seções abaixo.</p>
+    <input type="password" id="token" autocomplete="current-password" aria-label="Token de administrador">
+  </div>
+  <div class="card">
+    <h2>Cadastrar preços à mão</h2>
+    <p class="dica">Sem IA e sem custo: copie os preços do encarte, da gôndola ou do site da loja.
+      Escolha o item da cesta para o preço entrar na comparação mesmo que o nome seja diferente.</p>
+    <form id="formManual">
+      <label for="destino">Onde vale esse preço</label>
+      <select id="destino" required></select>
+      <div class="cab"><span>Item da cesta</span><span>Produto (como na loja)</span><span>Preço (R$)</span><span></span><span></span></div>
+      <div id="linhas"></div>
+      <button type="button" class="sec" id="maisLinha">+ Adicionar item</button>
+      <button id="btnManual">Salvar preços</button>
+      <div class="msg" id="msgManual"></div>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Enviar encarte de ofertas (com IA, pago)</h2>
     <p class="dica">PDF ou imagem do tabloide oficial da rede. A IA lê os produtos, os preços e a validade,
       e aplica as ofertas a todas as lojas da rede na Grande Natal.</p>
     <form id="form">
@@ -42,8 +77,6 @@
       <input type="file" id="arquivo" accept="application/pdf,image/*" required>
       <label for="url">De onde veio (link oficial, opcional)</label>
       <input type="url" id="url" placeholder="https://...">
-      <label for="token">Token de administrador</label>
-      <input type="password" id="token" required autocomplete="current-password">
       <button id="btn">Enviar e ler com IA</button>
       <div class="msg" id="msg"></div>
     </form>
@@ -59,6 +92,87 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const dia = d => d ? new Date(d).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "?";
 try { document.getElementById("token").value = sessionStorage.getItem("ofertao_token") || ""; } catch {}
 
+const tokenAtual = () => {
+  const t = document.getElementById("token").value;
+  try { sessionStorage.setItem("ofertao_token", t); } catch {}
+  return t;
+};
+let opcoesItens = "";
+
+function novaLinha() {
+  const div = document.createElement("div");
+  div.className = "linha";
+  div.innerHTML = `
+    <select class="item" aria-label="Item da cesta"><option value="">(sem item da cesta)</option>${opcoesItens}</select>
+    <input class="nome" required placeholder="Ex.: Arroz Camil Tipo 1 5kg" aria-label="Produto">
+    <input class="preco" type="number" inputmode="decimal" step="0.01" min="0.01" required placeholder="0,00" aria-label="Preço">
+    <label class="promo"><input type="checkbox" class="promocao"> promoção</label>
+    <button type="button" class="tirar" title="Remover linha" aria-label="Remover linha">✕</button>`;
+  const item = div.querySelector(".item"), nome = div.querySelector(".nome");
+  item.onchange = () => {
+    if (!nome.value.trim() || nome.dataset.auto) {
+      nome.value = item.value ? item.selectedOptions[0].textContent : "";
+      nome.dataset.auto = item.value ? "1" : "";
+    }
+  };
+  nome.oninput = () => { nome.dataset.auto = ""; };
+  div.querySelector(".tirar").onclick = () => {
+    div.remove();
+    if (!document.querySelector("#linhas .linha")) novaLinha();
+  };
+  document.getElementById("linhas").appendChild(div);
+  return div;
+}
+
+async function carregarManual() {
+  const [redes, lojas, itens] = await Promise.all(
+    ["/api/redes", "/api/mercados", "/api/itens"].map(u => fetch(u).then(r => r.json())));
+  const porCategoria = {};
+  for (const g of itens.genericos) (porCategoria[g.categoria] ??= []).push(g);
+  opcoesItens = Object.entries(porCategoria).map(([cat, gs]) =>
+    `<optgroup label="${esc(cat)}">${gs.map(g => `<option value="${esc(g.slug)}">${esc(g.nome)}</option>`).join("")}</optgroup>`).join("");
+  const loja = m => `<option value="loja:${m.id}">${esc(m.nome)}${m.bairro ? " · " + esc(m.bairro) : ""}</option>`;
+  document.getElementById("destino").innerHTML =
+    `<optgroup label="Rede inteira (todas as lojas)">${redes.map(r =>
+      `<option value="rede:${esc(r.rede)}">${esc(r.rede)} (${r.lojas} lojas)</option>`).join("")}</optgroup>` +
+    `<optgroup label="Uma loja só">${lojas.map(loja).join("")}</optgroup>`;
+  novaLinha();
+}
+
+document.getElementById("maisLinha").onclick = () => novaLinha().querySelector(".item").focus();
+
+document.getElementById("formManual").onsubmit = async e => {
+  e.preventDefault();
+  const btn = document.getElementById("btnManual"), msg = document.getElementById("msgManual");
+  const token = tokenAtual();
+  if (!token) { msg.textContent = "❌ Informe o token de administrador no topo."; return; }
+  const itens = [...document.querySelectorAll("#linhas .linha")].map(l => ({
+    nome: l.querySelector(".nome").value.trim(),
+    preco: parseFloat(l.querySelector(".preco").value),
+    promocao: l.querySelector(".promocao").checked,
+    item_generico: l.querySelector(".item").value || null,
+  }));
+  const destino = document.getElementById("destino").value;
+  const sep = destino.indexOf(":"), tipo = destino.slice(0, sep), valor = destino.slice(sep + 1);
+  const url = tipo === "rede" ? `/api/redes/${encodeURIComponent(valor)}/precos` : `/api/mercados/${valor}/precos`;
+  btn.disabled = true; msg.textContent = "Salvando...";
+  try {
+    const r = await fetch(url, { method: "POST", body: JSON.stringify({ itens }),
+      headers: { "Content-Type": "application/json", "X-Token": token } });
+    const j = await r.json();
+    if (!r.ok) {
+      msg.textContent = r.status === 401
+        ? "❌ Token inválido (ou OFERTAO_ADMIN_TOKEN não configurado no servidor)."
+        : `❌ ${typeof j.detail === "string" ? j.detail : "Confira os campos preenchidos."}`;
+    } else {
+      msg.textContent = `✅ ${j.itens_gravados} preço(s) salvos em ${j.lojas} loja(s).`;
+      document.getElementById("linhas").innerHTML = "";
+      novaLinha();
+    }
+  } catch { msg.textContent = "❌ Falha de conexão."; }
+  btn.disabled = false;
+};
+
 async function carregar() {
   const redes = await (await fetch("/api/redes")).json();
   document.getElementById("rede").innerHTML =
@@ -72,8 +186,8 @@ async function carregar() {
 document.getElementById("form").onsubmit = async e => {
   e.preventDefault();
   const btn = document.getElementById("btn"), msg = document.getElementById("msg");
-  const token = document.getElementById("token").value;
-  try { sessionStorage.setItem("ofertao_token", token); } catch {}
+  const token = tokenAtual();
+  if (!token) { document.getElementById("msg").textContent = "❌ Informe o token de administrador no topo."; return; }
   const fd = new FormData();
   fd.append("rede", document.getElementById("rede").value);
   fd.append("arquivo", document.getElementById("arquivo").files[0]);
@@ -93,6 +207,7 @@ document.getElementById("form").onsubmit = async e => {
   btn.disabled = false;
 };
 carregar();
+carregarManual();
 </script>
 </body>
 </html>

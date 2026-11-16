@@ -1,4 +1,7 @@
-"""Coletor de preços de lojas na plataforma VTEX (catálogo público "Intelligent Search").
+"""Coletor de preços de lojas na plataforma VTEX (API pública de catálogo, catalog_system/pub).
+
+A busca "Intelligent Search" do Atacadão passou a responder 429 para o coletor; a API de
+catálogo traz os mesmos dados (EAN, preço, estoque) e é permitida pelo robots.txt.
 
 Hoje: Atacadão. O preço é o da LOJA ONLINE da rede; ele é atribuído às lojas
 físicas da rede na Grande Natal com a fonte "atacadao_online", para o usuário
@@ -53,8 +56,8 @@ def buscar(cliente: httpx.Client, loja: LojaVtex, termo: str, paginas: int = 2) 
     for pagina in range(1, paginas + 1):
         for tentativa in range(4):
             r = cliente.get(
-                f"{loja.base_url}/api/io/_v/api/intelligent-search/product_search/",
-                params={"query": termo, "count": 50, "page": pagina},
+                f"{loja.base_url}/api/catalog_system/pub/products/search",
+                params={"ft": termo, "_from": (pagina - 1) * 50, "_to": pagina * 50 - 1},
             )
             if r.status_code != 429:
                 break
@@ -62,7 +65,7 @@ def buscar(cliente: httpx.Client, loja: LojaVtex, termo: str, paginas: int = 2) 
             log.info("Atacadão pediu para esperar (429); aguardando %.0fs", espera)
             time.sleep(espera)
         r.raise_for_status()
-        lote = r.json().get("products", [])
+        lote = r.json()
         produtos += lote
         if len(lote) < 50:
             break

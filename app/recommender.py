@@ -204,7 +204,10 @@ def _brl(v: float) -> str:
 
 
 NOMES_FONTE = {
-    "atacadao_online": "preço da loja online do Atacadão",
+    "atacadao_online": "API pública Atacadão",
+    "paodeacucar_online": "API pública Pão de Açúcar",
+    "samsclub_online": "API pública Sam's Club",
+    "consulta_publica": "consulta de referência pública local",
     "cupom_fiscal": "cupom fiscal enviado por usuário",
     "dono": "informado pela loja",
     "encarte": "encarte de ofertas da rede",
@@ -215,7 +218,7 @@ def _explicar(ranking: list[ResultadoMercado], divisao: ResultadoDivisao | None,
               sem_dados: int) -> str:
     m = ranking[0]
     partes = [
-        f"A melhor opção é {m.nome} ({m.cidade or 'Grande Natal'}), a {m.distancia_km:.1f} km: "
+        f"A melhor opção é {m.nome}{f' ({m.cidade})' if m.cidade else ''}, a {m.distancia_km:.1f} km: "
         f"{_brl(m.subtotal_carrinho)} na feira + {_brl(m.custo_deslocamento)} de deslocamento "
         f"= {_brl(m.custo_total)}."
     ]

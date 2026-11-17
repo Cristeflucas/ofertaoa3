@@ -3,66 +3,84 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ofertão</title>
+<title>Ofertão — Consulta Automática de Preços em Todo o Brasil</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <style>
   :root {
     --azul: #123a8c; --azul-escuro: #0b2560; --laranja: #f26b1d; --laranja-claro: #fff1e8;
-    --verde: #1a9b55; --fundo: #f3f5fa; --card: #fff; --texto: #1c2333; --suave: #6b7489;
-    --borda: #e3e7ef;
+    --verde: #1a9b55; --verde-claro: #eefaf3; --fundo: #f3f5fa; --card: #fff;
+    --texto: #1c2333; --suave: #6b7489; --borda: #e3e7ef;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
          background: var(--fundo); color: var(--texto); }
-  header { background: var(--azul-escuro); color: #fff; padding: 14px 20px; display: flex;
-           align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  header h1 { margin: 0; font-size: 1.5rem; }
+  header { background: linear-gradient(135deg, var(--azul-escuro), var(--azul)); color: #fff;
+           padding: 14px 24px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+           box-shadow: 0 2px 12px rgba(11,37,96,.18); }
+  header h1 { margin: 0; font-size: 1.55rem; letter-spacing: -.5px; }
   header h1 span { color: var(--laranja); }
-  header small { color: #c7d2ee; }
+  header small { color: #d0dcff; font-size: .88rem; }
+  .badge-api { background: rgba(26,155,85,.25); border: 1px solid #4be38d; color: #d9ffe8;
+               padding: 4px 10px; border-radius: 999px; font-size: .76rem; font-weight: 600; }
   .status { font-size: .8rem; color: #c7d2ee; margin-left: auto; }
-  main { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px;
-         max-width: 1400px; margin: 0 auto; }
+  main { display: grid; grid-template-columns: 420px 1fr; gap: 16px; padding: 16px;
+         max-width: 1440px; margin: 0 auto; }
   main > section { min-width: 0; }
-  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); padding: 12px; } }
+  @media (max-width: 940px) { main { grid-template-columns: minmax(0, 1fr); padding: 12px; } }
   .card { background: var(--card); border-radius: 14px; padding: 16px; border: 1px solid var(--borda);
           box-shadow: 0 2px 8px rgba(18,58,140,.06); }
   .card + .card { margin-top: 16px; }
-  h2 { margin: 0 0 10px; font-size: 1.05rem; color: var(--azul); }
-  input[type=search] { width: 100%; padding: 10px 12px; border: 1px solid var(--borda);
-                       border-radius: 10px; font-size: .95rem; }
-  .sugestoes { max-height: 260px; overflow: auto; margin-top: 8px; }
-  .grupo-tit { font-size: .72rem; font-weight: 700; color: var(--azul); margin: 10px 0 2px; text-transform: uppercase; }
-  .sug { display: flex; justify-content: space-between; align-items: center; padding: 7px 4px;
-         border-bottom: 1px solid var(--borda); font-size: .9rem; cursor: pointer; }
+  h2 { margin: 0 0 10px; font-size: 1.05rem; color: var(--azul); display: flex;
+       align-items: center; justify-content: space-between; gap: 8px; }
+  .busca-wrap { display: flex; gap: 6px; }
+  input[type=search] { flex: 1; padding: 10px 12px; border: 1px solid var(--borda);
+                       border-radius: 10px; font-size: .95rem; outline: none; }
+  input[type=search]:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(18,58,140,.12); }
+  .btn-api { border: 0; background: var(--azul); color: #fff; border-radius: 10px;
+             padding: 0 12px; font-size: .82rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-api:hover { background: var(--azul-escuro); }
+  .atalhos { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { border: 1px solid var(--borda); background: #f8f9fc; color: var(--texto);
+          border-radius: 999px; padding: 4px 10px; font-size: .76rem; cursor: pointer; font-weight: 500; }
+  .chip:hover, .chip.ativo { background: var(--azul); color: #fff; border-color: var(--azul); }
+  .sugestoes { max-height: 330px; overflow: auto; margin-top: 10px; padding-right: 2px; }
+  .grupo-tit { font-size: .72rem; font-weight: 700; color: var(--azul); margin: 10px 0 4px;
+               text-transform: uppercase; letter-spacing: .4px; }
+  .sug { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 6px;
+         border-bottom: 1px solid var(--borda); font-size: .88rem; cursor: pointer; border-radius: 8px; }
   .sug:hover { background: var(--laranja-claro); }
-  .sug small { color: var(--suave); }
-  .cart-item { display: flex; align-items: center; gap: 8px; padding: 6px 0;
-               border-bottom: 1px solid var(--borda); font-size: .9rem; }
+  .sug-img { width: 36px; height: 36px; border-radius: 6px; object-fit: contain; background: #fff;
+             border: 1px solid var(--borda); flex-shrink: 0; }
+  .sug-info { flex: 1; min-width: 0; }
+  .sug-nome { font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; }
+  .sug small { color: var(--suave); font-size: .76rem; }
+  .sug-preco { font-weight: 700; color: var(--verde); font-size: .82rem; white-space: nowrap; text-align: right; }
+  .sug-add { background: var(--laranja); color: #fff; width: 26px; height: 26px; border-radius: 50%;
+             display: grid; place-items: center; font-weight: 700; flex-shrink: 0; }
+  .cart-item { display: flex; align-items: center; gap: 8px; padding: 7px 0;
+               border-bottom: 1px solid var(--borda); font-size: .88rem; }
   .cart-item .nome { flex: 1; }
-  .cart-item input { width: 58px; padding: 4px; border: 1px solid var(--borda); border-radius: 6px; }
-  .cart-item button { border: 0; background: none; color: #c0392b; cursor: pointer; font-size: 1.1rem; }
-  .vazio { color: var(--suave); font-size: .9rem; }
+  .cart-item input { width: 58px; padding: 5px; border: 1px solid var(--borda); border-radius: 6px; text-align: center; }
+  .cart-item button { border: 0; background: none; color: #c0392b; cursor: pointer; font-size: 1.15rem; }
+  .vazio { color: var(--suave); font-size: .88rem; text-align: center; padding: 12px 0; }
   .btn { width: 100%; border: 0; border-radius: 12px; padding: 13px; font-size: 1rem; font-weight: 600;
-         background: var(--laranja); color: #fff; cursor: pointer; margin-top: 12px; }
+         background: var(--laranja); color: #fff; cursor: pointer; margin-top: 12px; transition: filter .15s; }
+  .btn:hover:not(:disabled) { filter: brightness(1.06); }
   .btn:disabled { opacity: .5; cursor: default; }
   .btn.sec { background: #fff; color: var(--azul); border: 1px solid var(--azul); margin-top: 8px;
-             padding: 8px; font-size: .9rem; }
-  .row { display: flex; gap: 8px; align-items: center; font-size: .85rem; color: var(--suave); margin-top: 8px; }
-  .row input[type=number] { width: 70px; padding: 4px; border: 1px solid var(--borda); border-radius: 6px; }
-  #mapa { height: min(520px, 62vh); min-height: 340px; border-radius: 14px; border: 1px solid var(--borda);
+             padding: 8px; font-size: .86rem; }
+  .row { display: flex; gap: 8px; align-items: center; font-size: .84rem; color: var(--suave); margin-top: 10px; flex-wrap: wrap; }
+  .row input[type=number] { width: 68px; padding: 5px; border: 1px solid var(--borda); border-radius: 6px; }
+  #mapa { height: min(460px, 56vh); min-height: 320px; border-radius: 14px; border: 1px solid var(--borda);
           background: #eef1f6; }
-  /* Mapa base mais suave, para os pinos se destacarem */
-  .mapa-base { filter: saturate(.55) brightness(1.05) contrast(.92); }
-  /* Você: ponto azul com pulso */
+  .mapa-base { filter: saturate(.65) brightness(1.03) contrast(.95); }
   .voce { position: relative; }
   .voce-ponto { position: absolute; inset: 4px; border-radius: 50%; background: #2f6bff;
                 border: 3px solid #fff; box-shadow: 0 1px 6px rgba(11,37,96,.45); }
   .voce-pulso { position: absolute; inset: 0; border-radius: 50%; background: rgba(47,107,255,.35);
                 animation: pulso 2s ease-out infinite; }
   @keyframes pulso { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.6); opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { .voce-pulso { animation: none; transform: scale(1.6); opacity: .35; } }
-  /* Lojas: pino com carrinho */
   .pino { filter: drop-shadow(0 2px 3px rgba(11,37,96,.35)); transition: transform .15s; transform-origin: 50% 100%; }
   .pino:hover { transform: scale(1.12); }
   .pino-badge { position: absolute; top: -7px; right: -9px; background: #fff; color: var(--verde);
@@ -71,73 +89,106 @@
   .cluster div { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
                  background: var(--azul); color: #fff; font: 700 13px system-ui, sans-serif;
                  border: 3px solid #fff; box-shadow: 0 0 0 4px rgba(18,58,140,.25), 0 2px 6px rgba(11,37,96,.35); }
-  /* Popup */
   .leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: 0 6px 24px rgba(11,37,96,.22); }
   .leaflet-popup-content { margin: 12px 14px; font-size: .88rem; }
   .pop-tit { font-weight: 700; color: var(--azul-escuro); font-size: .98rem; }
   .pop-rede { display: inline-block; margin: 4px 0; background: #e8eefc; color: var(--azul); border-radius: 999px;
               padding: 1px 8px; font-size: .72rem; font-weight: 600; }
   .pop-end { color: var(--suave); font-size: .8rem; }
-  /* Legenda */
   .legenda { background: #fff; border-radius: 10px; padding: 8px 10px; font-size: .75rem; color: var(--texto);
              box-shadow: 0 2px 8px rgba(11,37,96,.18); line-height: 1.7; }
   .legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px;
                border: 2px solid #fff; box-shadow: 0 0 0 1px #0002; vertical-align: -1px; }
-  @media (max-width: 600px) { .legenda { font-size: .7rem; padding: 6px 8px; } }
   .explicacao { background: var(--laranja-claro); border-left: 4px solid var(--laranja);
                 padding: 12px; border-radius: 8px; font-size: .92rem; line-height: 1.45; }
   .ranking { margin-top: 12px; display: grid; gap: 8px; }
-  .merc { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center;
-          padding: 10px; border: 1px solid var(--borda); border-radius: 10px; cursor: pointer; }
-  .merc.top { border-color: var(--verde); background: #eefaf3; }
-  .merc .pos { font-weight: 700; color: var(--azul); text-align: center; }
-  .merc .info small { color: var(--suave); display: block; }
-  .merc .valor { text-align: right; font-weight: 700; color: var(--laranja); }
+  .merc { display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center;
+          padding: 12px; border: 1px solid var(--borda); border-radius: 10px; cursor: pointer; transition: border-color .15s; }
+  .merc:hover { border-color: var(--azul); }
+  .merc.top { border-color: var(--verde); background: var(--verde-claro); }
+  .merc .pos { font-weight: 700; color: var(--azul); text-align: center; font-size: .95rem; }
+  .merc .info small { color: var(--suave); display: block; margin-top: 2px; }
+  .merc .valor { text-align: right; font-weight: 700; color: var(--laranja); font-size: 1.05rem; }
   .merc .valor small { display: block; font-weight: 400; color: var(--suave); font-size: .75rem; }
   .falta { color: #c0392b !important; }
-  .detalhe { font-size: .85rem; margin-top: 6px; }
-  .detalhe td { padding: 2px 6px; vertical-align: top; }
+  .detalhe { font-size: .83rem; margin-top: 8px; width: 100%; border-collapse: collapse; }
+  .detalhe td { padding: 4px 6px; vertical-align: top; border-top: 1px solid var(--borda); }
   .fonte { font-size: .7rem; color: var(--suave); }
-  .tag { background: var(--verde); color: #fff; border-radius: 4px; padding: 0 4px; font-size: .7rem; }
-  .cupom { margin-top: 8px; padding: 8px; border: 1px dashed var(--azul); border-radius: 10px; font-size: .82rem; }
-  .cupom input[type=file], .cupom textarea { width: 100%; margin: 6px 0 0; }
-  .cupom textarea { min-height: 60px; border: 1px solid var(--borda); border-radius: 8px; padding: 6px; }
-  .msg { font-size: .82rem; margin-top: 6px; }
+  .tag { background: var(--verde); color: #fff; border-radius: 4px; padding: 1px 5px; font-size: .68rem; }
+  .loading-api { font-size: .82rem; color: var(--azul); padding: 10px; text-align: center; font-weight: 500; }
 </style>
 </head>
 <body>
 <header>
   <h1>Ofer<span>tão</span></h1>
-  <small>O melhor mercado da Grande Natal para a sua feira</small>
-  <span class="status" id="status"></span>
+  <small>Comparador automático de supermercados em todo o Brasil</small>
+  <span class="badge-api">⚡ Consulta de APIs em Tempo Real Ativa</span>
+  <span class="status" id="status">Carregando mercados...</span>
 </header>
 
 <main>
   <section>
     <div class="card">
-      <h2>1. Monte sua feira</h2>
-      <input type="search" id="busca" placeholder="Buscar (ex: arroz, leite, código de barras)">
+      <h2>
+        <span>1. Busque qualquer item</span>
+        <button class="chip" id="btnCestaBasica" title="Preenche uma feira pronta para testar agora">🛒 Testar Feira Básica</button>
+      </h2>
+      <div class="busca-wrap">
+        <input type="search" id="busca" placeholder="Digite qualquer produto ou marca (ex: arroz, coca cola, leite, café...)">
+        <button class="btn-api" id="btnBuscaApi" title="Consultar direto nas APIs públicas agora">Buscar na API</button>
+      </div>
+      <div class="atalhos" id="categorias">
+        <span class="chip ativo" data-cat="">Todos</span>
+        <span class="chip" data-cat="Grãos">Grãos</span>
+        <span class="chip" data-cat="Mercearia">Mercearia</span>
+        <span class="chip" data-cat="Laticínios">Laticínios</span>
+        <span class="chip" data-cat="Proteínas">Proteínas</span>
+        <span class="chip" data-cat="Padaria">Padaria</span>
+        <span class="chip" data-cat="Limpeza">Limpeza</span>
+        <span class="chip" data-cat="Higiene">Higiene</span>
+      </div>
       <div class="sugestoes" id="sugestoes"></div>
     </div>
+
     <div class="card">
-      <h2>Carrinho</h2>
-      <div id="carrinho"><p class="vazio">Seu carrinho está vazio.</p></div>
+      <h2>
+        <span>Seu Carrinho</span>
+        <button class="chip" id="btnLimpar" style="display:none">Limpar</button>
+      </h2>
+      <div id="carrinho"><p class="vazio">Adicione itens acima ou clique em "Testar Feira Básica".</p></div>
       <div class="row">
-        Raio <input type="number" id="raio" value="15" min="1"> km
-        · R$/km <input type="number" id="custoKm" value="0.80" step="0.1" min="0">
+        Raio máx: <input type="number" id="raio" value="15" min="1"> km
+        · Custo deslocamento: R$ <input type="number" id="custoKm" value="0.80" step="0.1" min="0">/km
       </div>
-      <button class="btn" id="btnComparar" disabled>Encontrar o melhor mercado</button>
+      <button class="btn" id="btnComparar" disabled>Consultar Todos os Mercados Próximos</button>
     </div>
   </section>
 
   <section>
     <div class="card">
-      <h2>2. Sua localização <small style="color:var(--suave);font-weight:400">(clique no mapa para ajustar · clique numa loja para enviar cupom)</small></h2>
+      <h2>2. Sua Localização no Brasil <small style="color:var(--suave);font-weight:400">(busque qualquer cidade/CEP ou clique no mapa)</small></h2>
+      <div class="busca-wrap" style="margin-bottom:8px">
+        <input type="search" id="buscaCidade" placeholder="Digite qualquer cidade, bairro, endereço ou CEP do Brasil...">
+        <button class="btn-api" id="btnBuscaCidade">Ir para Cidade/CEP</button>
+      </div>
+      <div class="atalhos" id="cidadesRapidas" style="margin-bottom:10px">
+        <span class="chip" data-lat="-23.5505" data-lon="-46.6333">São Paulo</span>
+        <span class="chip" data-lat="-22.9068" data-lon="-43.1729">Rio de Janeiro</span>
+        <span class="chip" data-lat="-15.7939" data-lon="-47.8828">Brasília</span>
+        <span class="chip" data-lat="-12.9714" data-lon="-38.5014">Salvador</span>
+        <span class="chip" data-lat="-3.7319" data-lon="-38.5267">Fortaleza</span>
+        <span class="chip" data-lat="-19.9167" data-lon="-43.9345">Belo Horizonte</span>
+        <span class="chip" data-lat="-8.0476" data-lon="-34.8770">Recife</span>
+        <span class="chip" data-lat="-25.4284" data-lon="-49.2733">Curitiba</span>
+        <span class="chip" data-lat="-30.0346" data-lon="-51.2177">Porto Alegre</span>
+        <span class="chip ativo" data-lat="-5.8275" data-lon="-35.2050">Natal</span>
+      </div>
+      <div id="resultadosCidade" class="sugestoes" style="max-height:150px;margin-bottom:8px;display:none"></div>
       <div id="mapa"></div>
-      <button class="btn sec" id="btnGps">Usar minha localização</button>
+      <button class="btn sec" id="btnGps">📍 Usar minha localização atual (GPS)</button>
     </div>
     <div class="card" id="resultado" hidden>
-      <h2>3. Resultado</h2>
+      <h2>3. Comparação em Todos os Mercados no Raio</h2>
       <div class="explicacao" id="explicacao"></div>
       <div class="ranking" id="ranking"></div>
     </div>
@@ -149,9 +200,19 @@
 <script>
 const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const FONTES = { atacadao_online: "loja online Atacadão", cupom_fiscal: "cupom fiscal", dono: "informado pela loja", encarte: "encarte de ofertas" };
-const carrinho = new Map();  // "g:1" / "p:9" -> {tipo, id, nome, quantidade}
-let local = { lat: -5.8275, lon: -35.2050 };  // Lagoa Nova, Natal
+const FONTES = {
+  atacadao_online: "API Atacadão",
+  paodeacucar_online: "API Pão de Açúcar",
+  samsclub_online: "API Sam's Club",
+  consulta_publica: "Referência Pública Local",
+  cupom_fiscal: "Cupom Fiscal",
+  dono: "Loja Oficial",
+  encarte: "Encarte da Rede"
+};
+const carrinho = new Map();
+let local = { lat: -5.8275, lon: -35.2050 }; // Lagoa Nova, Natal
+let categoriaAtiva = "";
+let cacheItens = { genericos: [], produtos: [] };
 
 // ---- Mapa ----
 const mapa = L.map("mapa", { zoomControl: false }).setView([local.lat, local.lon], 12);
@@ -174,18 +235,63 @@ const grupoLojas = L.markerClusterGroup({
   iconCreateFunction: c => L.divIcon({ className: "cluster", iconSize: [38, 38],
                                        html: `<div>${c.getChildCount()}</div>` }),
 }).addTo(mapa);
-const camadaDestaque = L.layerGroup().addTo(mapa);  // lojas do resultado ficam fora dos grupos
+const camadaDestaque = L.layerGroup().addTo(mapa);
 let rota = null;
 
-function moverUsuario(lat, lon) {
+async function moverUsuario(lat, lon, centralizar = false) {
   local = { lat, lon };
   marcadorUser.setLatLng([lat, lon]);
-  if (rota) { rota.remove(); rota = null; }  // resultado antigo não vale mais para o novo ponto
+  if (centralizar) mapa.setView([lat, lon], 13);
+  if (rota) { rota.remove(); rota = null; }
+  await carregarMercados();
+  if (carrinho.size > 0) compararMercados();
 }
 mapa.on("click", e => moverUsuario(e.latlng.lat, e.latlng.lng));
 document.getElementById("btnGps").onclick = () => navigator.geolocation?.getCurrentPosition(
-  p => { moverUsuario(p.coords.latitude, p.coords.longitude); mapa.setView([local.lat, local.lon], 14); },
+  p => moverUsuario(p.coords.latitude, p.coords.longitude, true),
   () => alert("Não foi possível obter sua localização."));
+
+document.getElementById("cidadesRapidas").onclick = e => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  document.querySelectorAll("#cidadesRapidas .chip").forEach(c => c.classList.toggle("ativo", c === chip));
+  moverUsuario(+chip.dataset.lat, +chip.dataset.lon, true);
+};
+
+async function buscarCidadeCep() {
+  const q = document.getElementById("buscaCidade").value.trim();
+  if (q.length < 2) return;
+  const box = document.getElementById("resultadosCidade");
+  box.style.display = "block";
+  box.innerHTML = `<div class="loading-api">🔎 Localizando "${esc(q)}" no Brasil...</div>`;
+  const locs = await (await fetch(`/api/localidades?q=${encodeURIComponent(q)}`)).json();
+  if (!locs.length) {
+    box.innerHTML = `<div class="vazio">Localidade não encontrada. Tente cidade + UF ou CEP.</div>`;
+    return;
+  }
+  if (locs.length === 1) {
+    box.style.display = "none";
+    document.querySelectorAll("#cidadesRapidas .chip").forEach(c => c.classList.remove("ativo"));
+    moverUsuario(locs[0].lat, locs[0].lon, true);
+    return;
+  }
+  box.innerHTML = locs.map(l => `
+    <div class="sug" data-lat="${l.lat}" data-lon="${l.lon}">
+      <div class="sug-info">
+        <span class="sug-nome">${esc(l.nome)}</span>
+      </div>
+      <span class="sug-add">→</span>
+    </div>`).join("");
+}
+document.getElementById("btnBuscaCidade").onclick = buscarCidadeCep;
+document.getElementById("buscaCidade").onkeydown = e => { if (e.key === "Enter") buscarCidadeCep(); };
+document.getElementById("resultadosCidade").onclick = e => {
+  const el = e.target.closest(".sug");
+  if (!el) return;
+  document.getElementById("resultadosCidade").style.display = "none";
+  document.querySelectorAll("#cidadesRapidas .chip").forEach(c => c.classList.remove("ativo"));
+  moverUsuario(+el.dataset.lat, +el.dataset.lon, true);
+};
 
 const CORES = { normal: "#123a8c", melhor: "#1a9b55", dividir: "#f26b1d" };
 function pino(estado = "normal", rotulo = "") {
@@ -208,99 +314,181 @@ const legenda = L.control({ position: "topright" });
 legenda.onAdd = () => {
   const d = L.DomUtil.create("div", "legenda");
   d.innerHTML = `<div><i style="background:#2f6bff"></i>Você</div>
-    <div><i style="background:${CORES.normal}"></i>Mercado</div>
-    <div><i style="background:${CORES.melhor}"></i>Melhor opção</div>
-    <div><i style="background:${CORES.dividir}"></i>Dividir a compra</div>`;
+    <div><i style="background:${CORES.normal}"></i>Mercado Público</div>
+    <div><i style="background:${CORES.melhor}"></i>Mais Barato</div>
+    <div><i style="background:${CORES.dividir}"></i>Dividir Compra</div>`;
   return d;
 };
 legenda.addTo(mapa);
 
 function popupLoja(m) {
   return `<div class="pop-tit">${esc(m.nome)}</div>
-    ${m.rede ? `<span class="pop-rede">${esc(m.rede)}</span>` : ""}
-    <div class="pop-end">${esc([m.endereco, m.bairro, m.cidade].filter(Boolean).join(" · "))}</div>
-    <div class="cupom" data-mercado="${m.id}">
-      <b>Comprou aqui?</b> Envie a foto do cupom fiscal e ajude todo mundo com preços reais.
-      <input type="file" accept="image/*">
-      <textarea placeholder="...ou cole o texto do cupom"></textarea>
-      <button class="btn sec" onclick="enviarCupom(this)">Enviar cupom</button>
-      <div class="msg"></div>
-    </div>`;
-}
-async function carregarMercados() {
-  const mercados = await (await fetch("/api/mercados")).json();
-  for (const m of mercados) {
-    const mk = L.marker([m.lat, m.lon], { icon: pino(), title: m.nome })
-      .bindPopup(popupLoja(m), { maxWidth: 280 });
-    marcadores.set(m.id, mk);
-    grupoLojas.addLayer(mk);
-  }
-}
-async function enviarCupom(btn) {
-  const box = btn.closest(".cupom"), msg = box.querySelector(".msg");
-  const foto = box.querySelector("input[type=file]").files[0];
-  const texto = box.querySelector("textarea").value.trim();
-  if (!foto && !texto) { msg.textContent = "Escolha a foto ou cole o texto."; return; }
-  const fd = new FormData();
-  if (foto) fd.append("foto", foto);
-  if (texto) fd.append("texto", texto);
-  btn.disabled = true; msg.textContent = "Lendo o cupom...";
-  try {
-    const r = await fetch(`/api/mercados/${box.dataset.mercado}/cupom`, { method: "POST", body: fd });
-    const j = await r.json();
-    msg.textContent = r.ok ? `✅ ${j.itens_gravados} preços gravados. Obrigado!` : `❌ ${j.detail}`;
-    if (r.ok) carregarStatus();
-  } catch { msg.textContent = "❌ Falha de conexão."; }
-  btn.disabled = false;
+    ${m.rede ? `<span class="pop-rede">${esc(m.rede)}</span>` : `<span class="pop-rede">Mercado Local</span>`}
+    <div class="pop-end">${esc([m.endereco, m.bairro, m.cidade].filter(Boolean).join(" · "))}</div>`;
 }
 
-// ---- Itens / carrinho ----
+let ctrlMercados = null;
+async function carregarMercados() {
+  if (ctrlMercados) ctrlMercados.abort();
+  ctrlMercados = new AbortController();
+  const raio = +document.getElementById("raio").value || 15;
+  document.getElementById("status").textContent = "Localizando supermercados no raio...";
+  try {
+    const r = await fetch(`/api/mercados?lat=${local.lat}&lon=${local.lon}&raio_km=${raio}`, { signal: ctrlMercados.signal });
+    const mercados = await r.json();
+    grupoLojas.clearLayers();
+    marcadores.clear();
+    for (const m of mercados) {
+      const mk = L.marker([m.lat, m.lon], { icon: pino(), title: m.nome })
+        .bindPopup(popupLoja(m), { maxWidth: 260 });
+      marcadores.set(m.id, mk);
+      grupoLojas.addLayer(mk);
+    }
+    carregarStatus();
+  } catch (e) {
+    if (e.name !== "AbortError") carregarStatus();
+  }
+}
+
 async function carregarStatus() {
   const s = await (await fetch("/api/status")).json();
   document.getElementById("status").textContent =
-    `${s.lojas} lojas reais · ${s.lojas_com_preco} com preços · ${s.produtos} produtos`;
+    `${s.lojas} supermercados locais mapeados · ${s.produtos} produtos consultados`;
 }
-async function buscar(q) {
-  const r = await (await fetch("/api/itens" + (q ? `?q=${encodeURIComponent(q)}` : ""))).json();
+
+function renderSugestoes() {
+  const r = cacheItens;
+  const genericosFiltrados = categoriaAtiva
+    ? r.genericos.filter(g => g.categoria === categoriaAtiva)
+    : r.genericos;
+
   let html = "";
-  if (r.genericos.length) html += '<div class="grupo-tit">Qualquer marca (pega a mais barata)</div>' +
-    r.genericos.map(g => `<div class="sug" data-tipo="g" data-id="${g.id}" data-nome="${esc(g.nome)}"><span>${esc(g.nome)}<br><small>${esc(g.categoria)}</small></span><b>+</b></div>`).join("");
-  if (r.produtos.length) html += '<div class="grupo-tit">Produto específico</div>' +
-    r.produtos.map(p => `<div class="sug" data-tipo="p" data-id="${p.id}" data-nome="${esc(p.nome)}"><span>${esc(p.nome)}<br><small>${p.ean ? "EAN " + esc(p.ean) : ""}</small></span><b>+</b></div>`).join("");
-  document.getElementById("sugestoes").innerHTML = html || '<p class="vazio">Nada encontrado.</p>';
+  if (genericosFiltrados.length) {
+    html += '<div class="grupo-tit">Itens da Feira (compara a marca mais barata em cada mercado)</div>' +
+      genericosFiltrados.map(g => `
+        <div class="sug" data-tipo="g" data-id="${g.id}" data-nome="${esc(g.nome)}">
+          ${g.imagem_url ? `<img class="sug-img" src="${esc(g.imagem_url)}" alt="">` : ""}
+          <div class="sug-info">
+            <span class="sug-nome">${esc(g.nome)}</span>
+            <small>${esc(g.categoria)}</small>
+          </div>
+          ${g.menor_preco ? `<span class="sug-preco">a partir de<br>${brl(g.menor_preco)}</span>` : `<span class="sug-preco"><small>Consulta ao vivo</small></span>`}
+          <span class="sug-add">+</span>
+        </div>`).join("");
+  }
+  if (r.produtos.length && !categoriaAtiva) {
+    html += '<div class="grupo-tit">Produtos Específicos Encontrados nas APIs</div>' +
+      r.produtos.map(p => `
+        <div class="sug" data-tipo="p" data-id="${p.id}" data-nome="${esc(p.nome)}">
+          ${p.imagem_url ? `<img class="sug-img" src="${esc(p.imagem_url)}" alt="">` : ""}
+          <div class="sug-info">
+            <span class="sug-nome">${esc(p.nome)}</span>
+            <small>${esc([p.marca, p.ean ? "EAN " + p.ean : ""].filter(Boolean).join(" · "))}</small>
+          </div>
+          ${p.menor_preco ? `<span class="sug-preco">a partir de<br>${brl(p.menor_preco)}</span>` : ""}
+          <span class="sug-add">+</span>
+        </div>`).join("");
+  }
+  document.getElementById("sugestoes").innerHTML = html || '<p class="vazio">Digite um produto e clique em "Buscar na API" para consultar em tempo real.</p>';
 }
+
+async function buscar(q, forcarApi = false) {
+  const box = document.getElementById("sugestoes");
+  if (q && q.length >= 2) {
+    box.innerHTML = `<div class="loading-api">🔄 Consultando "${esc(q)}" apenas nos mercados do raio...</div>`;
+  }
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (forcarApi) params.set("ao_vivo", "true");
+  params.set("lat", local.lat);
+  params.set("lon", local.lon);
+  params.set("raio_km", +document.getElementById("raio").value || 15);
+  const r = await (await fetch("/api/itens?" + params.toString())).json();
+  cacheItens = r;
+  renderSugestoes();
+  if (r.consultou_api) carregarStatus();
+}
+
 let tBusca;
 document.getElementById("busca").oninput = e => {
-  clearTimeout(tBusca); tBusca = setTimeout(() => buscar(e.target.value.trim()), 250);
+  clearTimeout(tBusca);
+  const v = e.target.value.trim();
+  if (v) {
+    categoriaAtiva = "";
+    document.querySelectorAll("#categorias .chip").forEach(c => c.classList.toggle("ativo", c.dataset.cat === ""));
+  }
+  tBusca = setTimeout(() => buscar(v, false), 350);
 };
+
+document.getElementById("btnBuscaApi").onclick = () => {
+  const v = document.getElementById("busca").value.trim();
+  if (v.length >= 2) buscar(v, true);
+};
+
+document.getElementById("categorias").onclick = e => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  categoriaAtiva = chip.dataset.cat || "";
+  document.querySelectorAll("#categorias .chip").forEach(c => c.classList.toggle("ativo", c === chip));
+  renderSugestoes();
+};
+
 document.getElementById("sugestoes").onclick = e => {
   const el = e.target.closest(".sug"); if (!el) return;
   const chave = `${el.dataset.tipo}:${el.dataset.id}`;
   const atual = carrinho.get(chave);
-  carrinho.set(chave, { tipo: el.dataset.tipo, id: +el.dataset.id, nome: el.dataset.nome,
-                        quantidade: (atual?.quantidade || 0) + 1 });
+  carrinho.set(chave, {
+    tipo: el.dataset.tipo,
+    id: +el.dataset.id,
+    nome: el.dataset.nome,
+    quantidade: (atual?.quantidade || 0) + 1
+  });
   renderCarrinho();
 };
+
+document.getElementById("btnCestaBasica").onclick = async () => {
+  if (!cacheItens.genericos.length) await buscar("");
+  const slugsBasicos = ["arroz-5kg", "feijao-carioca-1kg", "cafe-250g", "leite-uht-1l", "oleo-soja-900ml", "acucar-cristal-1kg"];
+  for (const g of cacheItens.genericos) {
+    if (slugsBasicos.includes(g.slug)) {
+      carrinho.set(`g:${g.id}`, { tipo: "g", id: g.id, nome: g.nome, quantidade: 1 });
+    }
+  }
+  renderCarrinho();
+  compararMercados();
+};
+
+document.getElementById("btnLimpar").onclick = () => {
+  carrinho.clear();
+  renderCarrinho();
+  document.getElementById("resultado").hidden = true;
+};
+
 function renderCarrinho() {
   const div = document.getElementById("carrinho");
   document.getElementById("btnComparar").disabled = carrinho.size === 0;
-  if (!carrinho.size) { div.innerHTML = '<p class="vazio">Seu carrinho está vazio.</p>'; return; }
+  document.getElementById("btnLimpar").style.display = carrinho.size ? "inline-block" : "none";
+  if (!carrinho.size) {
+    div.innerHTML = '<p class="vazio">Adicione itens acima ou clique em "Testar Feira Básica".</p>';
+    return;
+  }
   div.innerHTML = [...carrinho.entries()].map(([k, c]) =>
-    `<div class="cart-item"><span class="nome">${esc(c.nome)}<br><small class="vazio">${c.tipo === "g" ? "qualquer marca" : "produto específico"}</small></span>
-     <input type="number" min="0.1" step="0.5" value="${c.quantidade}" data-k="${k}">
+    `<div class="cart-item"><span class="nome">${esc(c.nome)}<br><small style="color:var(--suave)">${c.tipo === "g" ? "menor preço da categoria" : "produto específico"}</small></span>
+     <input type="number" min="1" step="1" value="${c.quantidade}" data-k="${k}">
      <button data-rm="${k}" title="Remover">×</button></div>`).join("");
 }
 document.getElementById("carrinho").oninput = e => {
-  const k = e.target.dataset.k; if (k) carrinho.get(k).quantidade = Math.max(0.1, +e.target.value || 1);
+  const k = e.target.dataset.k; if (k) carrinho.get(k).quantidade = Math.max(1, +e.target.value || 1);
 };
 document.getElementById("carrinho").onclick = e => {
   const k = e.target.dataset.rm; if (k) { carrinho.delete(k); renderCarrinho(); }
 };
 
 // ---- Recomendação ----
-document.getElementById("btnComparar").onclick = async () => {
+async function compararMercados() {
   const btn = document.getElementById("btnComparar");
-  btn.disabled = true; btn.textContent = "Comparando...";
+  btn.disabled = true;
+  btn.textContent = "⚡ Consultando APIs e comparando mercados locais...";
   try {
     const resp = await fetch("/api/recomendar", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -312,12 +500,17 @@ document.getElementById("btnComparar").onclick = async () => {
       }),
     });
     renderResultado(await resp.json());
-  } finally { btn.disabled = false; btn.textContent = "Encontrar o melhor mercado"; }
-};
+    carregarStatus();
+  } finally {
+    btn.disabled = carrinho.size === 0;
+    btn.textContent = "Consultar Todos os Mercados Próximos";
+  }
+}
+document.getElementById("btnComparar").onclick = compararMercados;
+
 function renderResultado(r) {
   document.getElementById("resultado").hidden = false;
   document.getElementById("explicacao").textContent = r.explicacao;
-  // devolve os destaques anteriores aos grupos
   camadaDestaque.eachLayer(mk => { mk.setIcon(pino()).setZIndexOffset(0); grupoLojas.addLayer(mk); });
   camadaDestaque.clearLayers();
   if (rota) { rota.remove(); rota = null; }
@@ -335,20 +528,20 @@ function renderResultado(r) {
       { color: CORES.melhor, weight: 4, opacity: .85, dashArray: "2 9", lineCap: "round" }).addTo(mapa);
     mapa.fitBounds([[local.lat, local.lon], [r.melhor.lat, r.melhor.lon]], { padding: [70, 70], maxZoom: 15 });
   }
-  const data = d => new Date(d).toLocaleDateString("pt-BR");
-  document.getElementById("ranking").innerHTML = r.ranking.map((m, i) => `
+  document.getElementById("ranking").innerHTML = r.ranking.slice(0, 30).map((m, i) => `
     <div class="merc ${i === 0 ? "top" : ""}" data-id="${m.mercado_id}">
       <div class="pos">${i + 1}º</div>
-      <div class="info"><b>${esc(m.nome)}</b>
-        <small>${esc(m.cidade || "Grande Natal")} · ${m.distancia_km.toFixed(1)} km</small>
-        ${m.faltantes.length ? `<small class="falta">Sem preço: ${esc(m.faltantes.join(", "))}</small>` : ""}
-        <table class="detalhe" hidden>${m.itens.map(it =>
-          `<tr><td>${it.quantidade}× ${esc(it.produto)} ${it.promocao ? '<span class="tag">promo</span>' : ""}
-             <br><span class="fonte">${esc(FONTES[it.fonte] || it.fonte)} · ${data(it.coletado_em)}</span></td>
-             <td>${brl(it.subtotal)}</td></tr>`).join("")}
-          <tr><td>Deslocamento</td><td>${brl(m.custo_deslocamento)}</td></tr></table>
+      <div class="info">
+        <b>${esc(m.nome)}</b> ${m.rede ? `<span class="pop-rede">${esc(m.rede)}</span>` : ""}
+        <small>${esc([m.endereco, m.cidade].filter(Boolean).join(" · "))} · ${m.distancia_km.toFixed(1)} km (ida e volta: ${brl(m.custo_deslocamento)})</small>
+        ${m.faltantes.length ? `<small class="falta">Sem cotação para: ${esc(m.faltantes.join(", "))}</small>` : ""}
+        <table class="detalhe" ${i === 0 ? "" : "hidden"}>${m.itens.map(it =>
+          `<tr><td>${it.quantidade}× ${esc(it.produto)} ${it.promocao ? '<span class="tag">oferta</span>' : ""}
+             <br><span class="fonte">${esc(FONTES[it.fonte] || it.fonte)}</span></td>
+             <td style="text-align:right;font-weight:600">${brl(it.subtotal)}</td></tr>`).join("")}
+          <tr><td>Deslocamento (ida e volta)</td><td style="text-align:right">${brl(m.custo_deslocamento)}</td></tr></table>
       </div>
-      <div class="valor">${brl(m.custo_total)}<small>feira ${brl(m.subtotal_carrinho)}</small></div>
+      <div class="valor">${brl(m.custo_total)}<small>produtos: ${brl(m.subtotal_carrinho)}</small></div>
     </div>`).join("");
 }
 document.getElementById("ranking").onclick = e => {

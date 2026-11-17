@@ -1,4 +1,5 @@
 import os
+import re
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -9,10 +10,17 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, col, func, or_, select
 
-from app.catalogo import REGRAS_POR_SLUG, sincronizar_catalogo
-from app.coletores import cupom, encarte
-from app.coletores.vtex import salvar_preco, salvar_produto
+from app.catalogo import REGRAS_POR_SLUG, normalizar, sincronizar_catalogo
+from app.coletores import cupom, encarte, osm, vtex
+from app.coletores.vtex import (
+    consultar_termo_publico,
+    consultar_termos_em_lote,
+    salvar_preco,
+    salvar_produto,
+    sincronizar_precos_mercados,
+)
 from app.database import criar_tabelas, engine, get_session
+from app.geo import distancia_rua_km
 from app.models import Encarte, ItemGenerico, Mercado, Preco, Produto
 from app.recommender import recomendar
 from app.schemas import PedidoRecomendacao, PrecosDono, RespostaRecomendacao
@@ -50,25 +58,198 @@ def status(session: Session = Depends(get_session)):
     }
 
 
+def _mercados_no_raio(session: Session, lat: float | None, lon: float | None, raio_km: float) -> list[Mercado]:
+    todos = list(session.exec(select(Mercado).order_by(Mercado.nome)).all())
+    if lat is None or lon is None:
+        return todos
+    return [m for m in todos if distancia_rua_km(lat, lon, m.lat, m.lon) <= max(raio_km, 2.0)]
+
+
 @app.get("/api/itens")
-def listar_itens(q: str | None = None, session: Session = Depends(get_session)):
-    """Itens genéricos da feira + produtos específicos (por nome ou EAN)."""
-    genericos = session.exec(select(ItemGenerico).order_by(ItemGenerico.categoria, ItemGenerico.nome)).all()
-    stmt = select(Produto).order_by(Produto.nome).limit(30)
-    if q:
-        genericos = [g for g in genericos if q.lower() in g.nome.lower()]
-        stmt = stmt.where(or_(col(Produto.nome).ilike(f"%{q}%"), Produto.ean == q))
-    produtos = session.exec(stmt).all() if q else []
-    return {"genericos": genericos, "produtos": produtos}
+def listar_itens(
+    q: str | None = None,
+    ao_vivo: bool = Query(default=False),
+    lat: float | None = Query(default=None),
+    lon: float | None = Query(default=None),
+    raio_km: float = Query(default=15.0),
+    session: Session = Depends(get_session),
+):
+    """Itens genéricos da feira + produtos específicos (consulta apenas nos mercados do raio)."""
+    genericos_db = session.exec(select(ItemGenerico).order_by(ItemGenerico.categoria, ItemGenerico.nome)).all()
+    termo = (q or "").strip()
+
+    def _buscar_produtos_db() -> list[Produto]:
+        if not termo:
+            return []
+        stmt = select(Produto).order_by(Produto.nome).limit(36)
+        palavras = [p for p in re.split(r"\s+", termo) if p]
+        for pal in palavras:
+            stmt = stmt.where(
+                or_(
+                    col(Produto.nome).ilike(f"%{pal}%"),
+                    col(Produto.marca).ilike(f"%{pal}%"),
+                    Produto.ean == termo,
+                )
+            )
+        return list(session.exec(stmt).all())
+
+    produtos_db = _buscar_produtos_db()
+    consultou_api = False
+    if termo and len(termo) >= 2 and (ao_vivo or len(produtos_db) < 4):
+        try:
+            mercados_raio = _mercados_no_raio(session, lat, lon, raio_km)
+            consultar_termo_publico(session, termo, apenas_catalogo=False, mercados_alvo=mercados_raio)
+            consultou_api = True
+            produtos_db = _buscar_produtos_db()
+        except Exception:
+            pass
+
+    if termo:
+        tnorm = normalizar(termo)
+        genericos_db = [
+            g for g in genericos_db
+            if tnorm in normalizar(g.nome) or tnorm in normalizar(g.categoria)
+        ]
+
+    # Menor preço considerando somente os mercados dentro do raio (se informado)
+    mercados_raio = _mercados_no_raio(session, lat, lon, raio_km) if (lat is not None and lon is not None) else []
+    stmt_min = select(Preco.produto_id, func.min(Preco.preco)).group_by(Preco.produto_id)
+    if mercados_raio:
+        stmt_min = stmt_min.where(col(Preco.mercado_id).in_([m.id for m in mercados_raio]))
+    min_por_prod = dict(session.exec(stmt_min).all())
+
+    min_por_grupo: dict[int, float] = {}
+    img_por_grupo: dict[int, str] = {}
+    for p in session.exec(select(Produto).where(col(Produto.grupo_id).is_not(None))).all():
+        mp = min_por_prod.get(p.id)
+        if mp is not None and (p.grupo_id not in min_por_grupo or mp < min_por_grupo[p.grupo_id]):
+            min_por_grupo[p.grupo_id] = mp
+        if p.imagem_url and p.grupo_id not in img_por_grupo:
+            img_por_grupo[p.grupo_id] = p.imagem_url
+
+    genericos_out = [
+        {
+            "id": g.id,
+            "slug": g.slug,
+            "nome": g.nome,
+            "categoria": g.categoria,
+            "menor_preco": round(min_por_grupo[g.id], 2) if g.id in min_por_grupo else None,
+            "imagem_url": img_por_grupo.get(g.id),
+        }
+        for g in genericos_db
+    ]
+    produtos_out = [
+        {
+            "id": p.id,
+            "ean": p.ean,
+            "nome": p.nome,
+            "marca": p.marca,
+            "imagem_url": p.imagem_url,
+            "grupo_id": p.grupo_id,
+            "menor_preco": round(min_por_prod[p.id], 2) if p.id in min_por_prod else None,
+        }
+        for p in produtos_db
+    ]
+    return {"genericos": genericos_out, "produtos": produtos_out, "consultou_api": consultou_api}
+
+
+@app.post("/api/consultar")
+def consultar_ao_vivo(
+    q: str = Query(..., min_length=2),
+    lat: float | None = Query(default=None),
+    lon: float | None = Query(default=None),
+    raio_km: float = Query(default=15.0),
+    session: Session = Depends(get_session),
+):
+    """Força consulta em tempo real nas APIs públicas apenas para os mercados no raio."""
+    mercados_raio = _mercados_no_raio(session, lat, lon, raio_km)
+    stats = consultar_termo_publico(session, q, apenas_catalogo=False, mercados_alvo=mercados_raio)
+    return {"ok": True, **stats}
+
+
+@app.get("/api/localidades")
+def buscar_localidades(q: str = Query(..., min_length=2)):
+    """Busca cidades, bairros, endereços ou CEPs em todo o Brasil."""
+    try:
+        return osm.buscar_localidade_brasil(q)
+    except Exception:
+        return []
 
 
 @app.get("/api/mercados", response_model=list[Mercado])
-def listar_mercados(session: Session = Depends(get_session)):
-    return session.exec(select(Mercado).order_by(Mercado.nome)).all()
+def listar_mercados(
+    lat: float | None = Query(default=None),
+    lon: float | None = Query(default=None),
+    raio_km: float = Query(default=15.0),
+    session: Session = Depends(get_session),
+):
+    if lat is not None and lon is not None:
+        proximos = _mercados_no_raio(session, lat, lon, raio_km)
+        if len(proximos) < 5:
+            try:
+                osm.importar_mercados_regiao(session, lat, lon, min(raio_km, 15.0))
+                proximos = _mercados_no_raio(session, lat, lon, raio_km)
+            except Exception:
+                pass
+        return proximos
+
+    todos = list(session.exec(select(Mercado).order_by(Mercado.nome)).all())
+    if not todos:
+        try:
+            osm.importar_mercados(session)
+            todos = list(session.exec(select(Mercado).order_by(Mercado.nome)).all())
+        except Exception:
+            pass
+    return todos
 
 
 @app.post("/api/recomendar", response_model=RespostaRecomendacao)
 def recomendar_mercado(pedido: PedidoRecomendacao, session: Session = Depends(get_session)):
+    # 1. Filtra estritamente os mercados dentro do raio pedido
+    mercados_atuais = list(session.exec(select(Mercado)).all())
+    proximos = [
+        m for m in mercados_atuais
+        if distancia_rua_km(pedido.lat, pedido.lon, m.lat, m.lon) <= pedido.raio_km
+    ]
+    if len(proximos) < 3 and any(m.osm_id for m in mercados_atuais):
+        try:
+            osm.importar_mercados_regiao(session, pedido.lat, pedido.lon, min(pedido.raio_km, 15.0))
+            mercados_atuais = list(session.exec(select(Mercado)).all())
+            proximos = [
+                m for m in mercados_atuais
+                if distancia_rua_km(pedido.lat, pedido.lon, m.lat, m.lon) <= pedido.raio_km
+            ]
+        except Exception:
+            pass
+
+    if not proximos:
+        return recomendar(session, pedido)
+
+    # 2. Consulta em lote (paralelo) apenas os itens do carrinho que ainda não têm cotação
+    grupo_ids = [it.grupo_id for it in pedido.itens if it.grupo_id is not None]
+    produto_ids = [it.produto_id for it in pedido.itens if it.produto_id is not None]
+    if grupo_ids and any(m.osm_id for m in proximos):
+        termos_faltantes: list[str] = []
+        for g in session.exec(select(ItemGenerico).where(col(ItemGenerico.id).in_(grupo_ids))).all():
+            tem_preco = session.exec(
+                select(Preco.id)
+                .join(Produto, Produto.id == Preco.produto_id)
+                .where(Produto.grupo_id == g.id)
+                .limit(1)
+            ).first()
+            if not tem_preco:
+                regra = REGRAS_POR_SLUG.get(g.slug)
+                termos_faltantes.append(vtex.termo_amplo(regra.busca) if regra else g.nome)
+        if termos_faltantes:
+            try:
+                consultar_termos_em_lote(session, termos_faltantes, mercados_alvo=proximos, apenas_catalogo=False)
+            except Exception:
+                pass
+
+    # 3. Sincroniza apenas os produtos do carrinho e apenas para os mercados dentro do raio
+    if any(m.osm_id for m in proximos):
+        sincronizar_precos_mercados(session, proximos, grupo_ids=grupo_ids, produto_ids=produto_ids)
+
     return recomendar(session, pedido)
 
 

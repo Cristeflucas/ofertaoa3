@@ -18,7 +18,6 @@ from datetime import UTC, date, datetime, time
 
 import anthropic
 import httpx
-import pymupdf
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
@@ -89,6 +88,7 @@ def paginas_como_imagens(conteudo: bytes, media_type: str) -> list[tuple[bytes, 
     """Retorna [(jpeg, 'image/jpeg', texto_da_pagina)]. Imagens passam direto."""
     if media_type != "application/pdf" and not conteudo.startswith(b"%PDF"):
         return [(conteudo, media_type, "")]
+    import pymupdf
     doc = pymupdf.open(stream=conteudo, filetype="pdf")
     paginas = []
     for pagina in list(doc)[:MAX_PAGINAS]:

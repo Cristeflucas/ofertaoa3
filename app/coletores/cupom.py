@@ -1,23 +1,17 @@
 """Importa preços reais a partir do cupom fiscal (NFC-e) que o próprio usuário enviou.
 
-O usuário manda a FOTO do cupom (ou cola o texto). O Claude extrai os itens,
+O usuário manda a FOTO do cupom (ou cola o texto). A IA (Gemini grátis ou Claude) extrai os itens,
 o CNPJ da loja e, quando possível, encaixa cada item num item genérico da feira.
 A consulta automática no portal da SEFAZ-RN não é usada porque ela exige captcha.
 """
 
-import base64
-import os
-
-import anthropic
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from app.catalogo import CESTA, REGRAS_POR_SLUG, encaixar, sincronizar_catalogo
-from app.coletores.encarte import SemCredencial
 from app.coletores.vtex import salvar_preco, salvar_produto
 from app.models import Mercado
-
-MODELO = os.getenv("OFERTAO_MODELO", "claude-opus-5-5")
+from app.visao import SemCredencial, como_leitor  # noqa: F401 (SemCredencial é reexportado)
 
 
 class ItemCupom(BaseModel):
@@ -50,37 +44,16 @@ def _instrucoes() -> str:
 
 
 def extrair(imagem: bytes | None = None, media_type: str = "image/jpeg",
-            texto: str | None = None, cliente: anthropic.Anthropic | None = None) -> Cupom:
+            texto: str | None = None, cliente=None) -> Cupom:
+    """`cliente`: um Leitor (app.visao), um cliente da Anthropic ou None (usa o provedor configurado)."""
     if not imagem and not texto:
         raise ValueError("Envie a foto ou o texto do cupom.")
-    conteudo: list[dict] = []
-    if imagem:
-        conteudo.append({"type": "image", "source": {
-            "type": "base64", "media_type": media_type,
-            "data": base64.standard_b64encode(imagem).decode(),
-        }})
-    conteudo.append({"type": "text", "text": texto or "Extraia os dados deste cupom fiscal."})
-
-    cliente = cliente or anthropic.Anthropic()
+    leitor = como_leitor(cliente)
     try:
-        resposta = cliente.beta.messages.parse(
-            model=MODELO,
-            max_tokens=16000,
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
-            system=_instrucoes(),
-            messages=[{"role": "user", "content": conteudo}],
-            output_format=Cupom,
-        )
-    except TypeError as e:
-        if "authentication" in str(e):  # SDK sem chave configurada
-            raise SemCredencial() from e
-        raise
-    if resposta.stop_reason == "refusal":
-        raise ValueError("Não foi possível ler este cupom.")
-    if resposta.parsed_output is None:
-        raise ValueError("Não foi possível interpretar o cupom.")
-    return resposta.parsed_output
+        return leitor.ler(_instrucoes(), imagem, media_type,
+                          texto or "Extraia os dados deste cupom fiscal.", Cupom)
+    except ValueError as e:
+        raise ValueError("Não foi possível ler este cupom.") from e
 
 
 def _ean(codigo: str | None) -> str | None:
@@ -101,7 +74,7 @@ def importar(session: Session, mercado: Mercado, cupom: Cupom) -> int:
         nome = item.descricao_legivel or item.descricao
         prod = salvar_produto(session, _ean(item.codigo), nome, None, None, grupos)
         if prod.grupo_id is None:
-            # a regra local tem prioridade; se ela não encaixou, usa a sugestão do Claude
+            # a regra local tem prioridade; se ela não encaixou, usa a sugestão da IA
             slug = item.item_generico if item.item_generico in REGRAS_POR_SLUG else None
             if slug is None and (regra := encaixar(item.descricao)):
                 slug = regra.slug

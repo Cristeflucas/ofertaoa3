@@ -23,7 +23,10 @@ from app.database import criar_tabelas, engine, get_session
 from app.geo import distancia_rua_km
 from app.models import Encarte, ItemGenerico, Mercado, Preco, Produto
 from app.recommender import recomendar
-from app.schemas import PedidoRecomendacao, PrecosDono, RespostaRecomendacao
+from app.schemas import PedidoChat, PedidoRecomendacao, PrecosDono, RespostaChat, RespostaRecomendacao
+from app import chatbot
+from app.visao import FalhaLeitura, SemCredencial
+
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 if not STATIC_DIR.exists():
@@ -79,6 +82,15 @@ def status(session: Session = Depends(get_session)):
         "produtos": session.exec(select(func.count()).select_from(Produto)).one(),
         "precos_por_fonte": dict(por_fonte),
     }
+
+
+@app.post("/api/chat", response_model=RespostaChat)
+def conversar(pedido: PedidoChat, session: Session = Depends(get_session)):
+    """Assistente que tira dúvidas sobre o site (Gemini/Groq grátis, Ollama, Claude ou FAQ local)."""
+    resposta, provedor = chatbot.responder(
+        [m.model_dump() for m in pedido.mensagens], status=status(session)
+    )
+    return RespostaChat(resposta=resposta, provedor=provedor)
 
 
 def _mercados_no_raio(session: Session, lat: float | None, lon: float | None, raio_km: float) -> list[Mercado]:
@@ -304,8 +316,10 @@ async def enviar_cupom(
                               texto=texto)
     except ValueError as e:
         raise HTTPException(422, str(e))
-    except (encarte.SemCredencial, anthropic.AuthenticationError):
-        raise HTTPException(503, "Leitura de cupons indisponível: configure ANTHROPIC_API_KEY")
+    except (SemCredencial, anthropic.AuthenticationError) as e:
+        raise HTTPException(503, str(SemCredencial()) if isinstance(e, anthropic.AuthenticationError) else str(e))
+    except FalhaLeitura as e:
+        raise HTTPException(502, f"Falha ao ler o cupom: {e}")
     except anthropic.APIError as e:
         raise HTTPException(502, f"Falha ao ler o cupom: {e.message}")
     gravados = cupom.importar(session, mercado, dados)
@@ -355,8 +369,10 @@ def enviar_encarte(
         r = encarte.processar(session, rede, conteudo, tipo, url_origem)
     except ValueError as e:
         raise HTTPException(422, str(e))
-    except (encarte.SemCredencial, anthropic.AuthenticationError):
-        raise HTTPException(503, "Leitura indisponível: configure ANTHROPIC_API_KEY")
+    except (SemCredencial, anthropic.AuthenticationError) as e:
+        raise HTTPException(503, str(SemCredencial()) if isinstance(e, anthropic.AuthenticationError) else str(e))
+    except FalhaLeitura as e:
+        raise HTTPException(502, f"Falha ao ler o encarte: {e}")
     except anthropic.APIError as e:
         raise HTTPException(502, f"Falha ao ler o encarte: {e.message}")
     return r

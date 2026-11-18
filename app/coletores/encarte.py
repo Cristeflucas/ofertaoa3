@@ -1,6 +1,6 @@
 """Encartes de ofertas (tabloides) lidos por IA.
 
-Fluxo: PDF/imagem do encarte -> páginas em JPEG -> Claude extrai itens, preços e
+Fluxo: PDF/imagem do encarte -> páginas em JPEG -> IA (Gemini grátis ou Claude) extrai itens, preços e
 validade -> preços gravados em TODAS as lojas daquela rede na Grande Natal,
 com fonte "encarte" e data de validade (oferta vencida não entra na comparação).
 
@@ -8,10 +8,8 @@ Fontes automáticas: sites oficiais das redes que publicam o encarte (FONTES).
 Outras redes: envio manual pelo painel (/admin) com a imagem/PDF.
 """
 
-import base64
 import hashlib
 import logging
-import os
 import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time
@@ -25,13 +23,13 @@ from app.catalogo import CESTA, REGRAS_POR_SLUG, encaixar, sincronizar_catalogo
 from app.coletores import USER_AGENT
 from app.coletores.vtex import salvar_preco, salvar_produto
 from app.models import Encarte, Mercado
+from app.visao import FalhaLeitura, Leitor, SemCredencial, como_leitor
 
 log = logging.getLogger(__name__)
 
-MODELO = os.getenv("OFERTAO_MODELO", "claude-opus-5-5")
 MAX_PAGINAS = 12
 MAX_BYTES = 60 * 1024 * 1024
-LADO_MAX_PX = 1568  # tamanho ideal de imagem para o Claude
+LADO_MAX_PX = 1568  # bom equilíbrio entre legibilidade dos preços e tamanho do envio
 
 
 @dataclass(frozen=True)
@@ -50,12 +48,7 @@ FONTES = [
 ]
 
 
-# ---------- extração com o Claude ----------
-
-class SemCredencial(RuntimeError):
-    def __init__(self):
-        super().__init__("Leitura por IA indisponível: configure a variável ANTHROPIC_API_KEY.")
-
+# ---------- extração por IA ----------
 
 class ItemEncarte(BaseModel):
     nome: str = Field(description="Produto como no encarte, com marca e tamanho. Ex.: 'Margarina Qualy Cremosa com Sal 500g'")
@@ -98,27 +91,11 @@ def paginas_como_imagens(conteudo: bytes, media_type: str) -> list[tuple[bytes, 
     return paginas
 
 
-def ler_pagina(imagem: bytes, media_type: str, texto: str, hoje: date,
-               cliente: anthropic.Anthropic) -> PaginaEncarte:
+def ler_pagina(imagem: bytes, media_type: str, texto: str, hoje: date, leitor: Leitor) -> PaginaEncarte:
     pedido = f"Data de hoje: {hoje.isoformat()}. Extraia as ofertas desta página do encarte."
     if texto.strip():
         pedido += f"\n\nTexto embutido no PDF (pode ajudar a ler nomes e preços):\n{texto[:6000]}"
-    resposta = cliente.beta.messages.parse(
-        model=MODELO,
-        max_tokens=16000,
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-        system=_instrucoes(),
-        messages=[{"role": "user", "content": [
-            {"type": "image", "source": {"type": "base64", "media_type": media_type,
-                                         "data": base64.standard_b64encode(imagem).decode()}},
-            {"type": "text", "text": pedido},
-        ]}],
-        output_format=PaginaEncarte,
-    )
-    if resposta.stop_reason == "refusal" or resposta.parsed_output is None:
-        raise ValueError("Não foi possível ler esta página do encarte.")
-    return resposta.parsed_output
+    return leitor.ler(_instrucoes(), imagem, media_type, pedido, PaginaEncarte)
 
 
 # ---------- gravação ----------
@@ -141,22 +118,19 @@ class Resultado:
 
 
 def processar(session: Session, rede: str, conteudo: bytes, media_type: str,
-              url_origem: str | None = None, cliente: anthropic.Anthropic | None = None,
+              url_origem: str | None = None, cliente=None,
               hoje: date | None = None) -> Resultado:
+    """`cliente`: um Leitor (app.visao), um cliente da Anthropic ou None (usa o provedor configurado)."""
     hash_arquivo = hashlib.sha256(conteudo).hexdigest()
     ja = session.exec(select(Encarte).where(Encarte.hash_arquivo == hash_arquivo)).first()
     if ja:
         return Resultado(ja.id, "repetido", ja.itens_extraidos, 0, ja.valido_ate)
 
     hoje = hoje or datetime.now(UTC).date()
-    cliente = cliente or anthropic.Anthropic()
-    try:
-        paginas = [ler_pagina(img, mt, txt, hoje, cliente)
-                   for img, mt, txt in paginas_como_imagens(conteudo, media_type)]
-    except TypeError as e:
-        if "authentication" in str(e):  # SDK sem chave configurada
-            raise SemCredencial() from e
-        raise
+    leitor = como_leitor(cliente)
+    imagens = paginas_como_imagens(conteudo, media_type)
+    log.info("Encarte %s: lendo %d página(s) com %s", rede, len(imagens), leitor.nome)
+    paginas = [ler_pagina(img, mt, txt, hoje, leitor) for img, mt, txt in imagens]
 
     valido_de = next((_data(p.valido_de) for p in paginas if p.valido_de), None)
     valido_ate = next((_data(p.valido_ate, fim_do_dia=True) for p in paginas if p.valido_ate), None)
@@ -207,8 +181,9 @@ def baixar(cliente: httpx.Client, url: str) -> bytes:
         return bytes(dados)
 
 
-def coletar(session: Session, cliente_ia: anthropic.Anthropic | None = None) -> list[Resultado]:
+def coletar(session: Session, cliente_ia=None) -> list[Resultado]:
     resultados = []
+    leitor = como_leitor(cliente_ia)  # falha cedo (SemCredencial) se não houver chave
     with httpx.Client(timeout=120, headers={"User-Agent": USER_AGENT}, follow_redirects=True) as http:
         for fonte in FONTES:
             try:
@@ -221,11 +196,11 @@ def coletar(session: Session, cliente_ia: anthropic.Anthropic | None = None) -> 
             for url in links:
                 try:
                     conteudo = baixar(http, url)
-                    r = processar(session, fonte.rede, conteudo, "application/pdf", url, cliente_ia)
+                    r = processar(session, fonte.rede, conteudo, "application/pdf", url, leitor)
                 except SemCredencial as e:
                     log.error("%s", e)
                     return resultados
-                except (httpx.HTTPError, ValueError, anthropic.AnthropicError) as e:
+                except (httpx.HTTPError, ValueError, FalhaLeitura, anthropic.AnthropicError) as e:
                     log.warning("Falha no encarte %s: %s", url, e)
                     continue
                 log.info("%s -> %s (%d itens, %d lojas)", url, r.situacao, r.itens, r.lojas)

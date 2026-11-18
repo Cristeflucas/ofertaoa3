@@ -16,3 +16,5 @@ def _carregar_env(caminho: Path) -> None:
 
 
 _carregar_env(Path(__file__).resolve().parent.parent / ".env")
+
+USER_AGENT = "OfertaoBot/0.1 (comparador de precos da Grande Natal)"

@@ -1,12 +1,28 @@
+# Ambientes virtuais
 .venv/
+venv/
+env/
+ENV/
+
+# Python cache & testes
 __pycache__/
+*.py[cod]
 .pytest_cache/
+
+# Bancos SQLite locais
 *.db
 *.db-shm
 *.db-wal
 *.sqlite3
+
+# Arquivos de variáveis de ambiente e credenciais
 .env
 .env.*
+*.env
+*.env.local
+env.local
 !.env.example
+
+# IDEs e Vercel
 .claude/settings.local.json
 .vercel/

@@ -115,3 +115,81 @@ def test_recomendador_ignora_oferta_vencida(session):
         p.valido_ate = p.valido_ate.replace(year=2020)
     session.commit()
     assert recomendar(session, pedido).melhor is None
+
+
+# ---------- Gemini (HTTP simulado) ----------
+
+import json  # noqa: E402
+
+import httpx  # noqa: E402
+
+from app import visao  # noqa: E402
+
+
+def _gemini_falso(respostas):
+    """Devolve as respostas em ordem; cada uma é (status, corpo) ou uma PaginaEncarte."""
+    pedidos = []
+
+    def tratar(req: httpx.Request):
+        pedidos.append((str(req.url), json.loads(req.read())))
+        r = respostas.pop(0)
+        if isinstance(r, encarte.PaginaEncarte):
+            texto = r.model_dump_json()
+            return httpx.Response(200, json={"candidates": [{"finishReason": "STOP",
+                                                             "content": {"parts": [{"text": texto}]}}]})
+        return httpx.Response(r[0], json=r[1])
+
+    http = httpx.Client(transport=httpx.MockTransport(tratar))
+    return visao.LeitorGemini("chave", http=http, espera_s=0), pedidos
+
+
+def test_encarte_com_gemini(session):
+    leitor, pedidos = _gemini_falso([PAG1, PAG2])
+    r = encarte.processar(session, "Rede Mais", _pdf(), "application/pdf", cliente=leitor,
+                          hoje=date(2026, 11, 10))
+    assert (r.situacao, r.itens, r.lojas) == ("processado", 3, 2)
+
+    url, corpo = pedidos[0]
+    assert "gemini-flash-latest:generateContent" in url
+    partes = corpo["contents"][0]["parts"]
+    assert partes[0]["inline_data"]["mime_type"] == "image/jpeg"
+    assert "Margarina Qualy" in partes[1]["text"]  # texto embutido do PDF vai junto
+    schema = corpo["generationConfig"]["responseJsonSchema"]
+    assert "$defs" not in json.dumps(schema) and "$ref" not in json.dumps(schema)
+    assert schema["properties"]["itens"]["items"]["properties"]["preco_oferta"]["type"] == "number"
+
+
+def test_gemini_sobrecarregado_tenta_de_novo_e_troca_de_modelo(session):
+    ocupado = (503, {"error": {"message": "high demand"}})
+    leitor, pedidos = _gemini_falso([ocupado, ocupado, PAG1])
+    r = encarte.processar(session, "Rede Mais", _pdf(1), "application/pdf", cliente=leitor,
+                          hoje=date(2026, 11, 10))
+    assert r.itens == 2
+    modelos = [u.split("/models/")[1].split(":")[0] for u, _ in pedidos]
+    assert modelos == ["gemini-flash-latest", "gemini-flash-latest", "gemini-flash-lite-latest"]
+
+
+def test_gemini_fora_do_ar_nao_grava_nada(session):
+    ocupado = (503, {"error": {"message": "high demand"}})
+    leitor, _ = _gemini_falso([ocupado] * 4)
+    with pytest.raises(visao.FalhaLeitura):
+        encarte.processar(session, "Rede Mais", _pdf(1), "application/pdf", cliente=leitor)
+    assert session.exec(select(Encarte)).all() == []
+
+
+def test_gemini_chave_invalida(session):
+    leitor, _ = _gemini_falso([(400, {"error": {"message": "API key not valid. Please pass a valid API key."}})])
+    with pytest.raises(visao.SemCredencial):
+        encarte.processar(session, "Rede Mais", _pdf(1), "application/pdf", cliente=leitor)
+
+
+def test_leitor_padrao_prefere_gemini(monkeypatch):
+    monkeypatch.delenv("OFERTAO_VISAO_PROVEDOR", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "a")
+    assert visao.leitor_padrao().nome == "gemini"
+    monkeypatch.delenv("GEMINI_API_KEY")
+    assert visao.leitor_padrao().nome == "anthropic"
+    monkeypatch.delenv("ANTHROPIC_API_KEY")
+    with pytest.raises(visao.SemCredencial):
+        visao.leitor_padrao()

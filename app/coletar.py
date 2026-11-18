@@ -2,7 +2,7 @@
 
     uv run python -m app.coletar osm        # lojas reais da Grande Natal (OpenStreetMap)
     uv run python -m app.coletar atacadao   # preços da loja online do Atacadão
-    uv run python -m app.coletar encartes   # encartes de ofertas lidos por IA (precisa ANTHROPIC_API_KEY)
+    uv run python -m app.coletar encartes   # encartes de ofertas lidos por IA (precisa GEMINI_API_KEY ou ANTHROPIC_API_KEY)
     uv run python -m app.coletar tudo
 """
 

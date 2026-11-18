@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -94,3 +95,17 @@ class PrecoDono(BaseModel):
 
 class PrecosDono(BaseModel):
     itens: list[PrecoDono] = Field(min_length=1)
+
+
+class MensagemChat(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=4000)
+
+
+class PedidoChat(BaseModel):
+    mensagens: list[MensagemChat] = Field(min_length=1, max_length=40)
+
+
+class RespostaChat(BaseModel):
+    resposta: str
+    provedor: str  # gemini, groq, ollama, anthropic ou faq (respostas locais, sem IA externa)

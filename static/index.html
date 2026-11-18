@@ -3,194 +3,201 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ofertão — Consulta Automática de Preços em Todo o Brasil</title>
+<title>Ofertão — Faça sua cotação</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <style>
   :root {
-    --azul: #123a8c; --azul-escuro: #0b2560; --laranja: #f26b1d; --laranja-claro: #fff1e8;
-    --verde: #1a9b55; --verde-claro: #eefaf3; --fundo: #f3f5fa; --card: #fff;
-    --texto: #1c2333; --suave: #6b7489; --borda: #e3e7ef;
+    --azul: #123a8c; --azul-escuro: #0b2560; --azul-suave: #eef3ff;
+    --laranja: #f26b1d; --laranja-hover: #df5b10; --laranja-claro: #fff1e8;
+    --verde: #1a9b55; --verde-claro: #eaf8f0;
+    --fundo: #f6f8fc; --card: #fff; --texto: #182135; --suave: #5f6b82; --borda: #e3e8f2;
+    --erro-bg: #fdecec; --erro: #b42318;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-         background: var(--fundo); color: var(--texto); }
-  header { background: linear-gradient(135deg, var(--azul-escuro), var(--azul)); color: #fff;
-           padding: 14px 24px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-           box-shadow: 0 2px 12px rgba(11,37,96,.18); }
-  header h1 { margin: 0; font-size: 1.55rem; letter-spacing: -.5px; }
-  header h1 span { color: var(--laranja); }
-  header small { color: #d0dcff; font-size: .88rem; }
-  .badge-api { background: rgba(26,155,85,.25); border: 1px solid #4be38d; color: #d9ffe8;
-               padding: 4px 10px; border-radius: 999px; font-size: .76rem; font-weight: 600; }
-  .status { font-size: .8rem; color: #c7d2ee; margin-left: auto; }
-  main { display: grid; grid-template-columns: 420px 1fr; gap: 16px; padding: 16px;
-         max-width: 1440px; margin: 0 auto; }
+         background: var(--fundo); color: var(--texto); font-size: 16px; }
+  header { background: #fff; border-bottom: 1px solid var(--borda); padding: 12px 20px;
+           display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .logo { font-size: 1.45rem; font-weight: 800; color: var(--azul-escuro); text-decoration: none; letter-spacing: -.5px; }
+  .logo span { color: var(--laranja); }
+  .voltar { color: var(--suave); text-decoration: none; font-size: .9rem; font-weight: 600; }
+  .voltar:hover { color: var(--azul); }
+
+  main { display: grid; grid-template-columns: 440px 1fr; gap: 20px; padding: 20px;
+         max-width: 1240px; margin: 0 auto; align-items: start; }
   main > section { min-width: 0; }
   @media (max-width: 940px) { main { grid-template-columns: minmax(0, 1fr); padding: 12px; } }
-  .card { background: var(--card); border-radius: 14px; padding: 16px; border: 1px solid var(--borda);
-          box-shadow: 0 2px 8px rgba(18,58,140,.06); }
+
+  .card { background: var(--card); border-radius: 18px; padding: 20px; border: 1px solid var(--borda);
+          box-shadow: 0 2px 10px rgba(18,58,140,.05); }
   .card + .card { margin-top: 16px; }
-  h2 { margin: 0 0 10px; font-size: 1.05rem; color: var(--azul); display: flex;
-       align-items: center; justify-content: space-between; gap: 8px; }
-  .busca-wrap { display: flex; gap: 6px; }
-  input[type=search] { flex: 1; padding: 10px 12px; border: 1px solid var(--borda);
-                       border-radius: 10px; font-size: .95rem; outline: none; }
+  .passo { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-size: 1.12rem; color: var(--azul-escuro); }
+  .passo b { width: 30px; height: 30px; border-radius: 50%; background: var(--laranja); color: #fff;
+             display: grid; place-items: center; font-size: .95rem; flex-shrink: 0; }
+
+  .linha { display: flex; gap: 8px; }
+  input[type=search] { flex: 1; min-width: 0; padding: 13px 14px; border: 1px solid var(--borda);
+                       border-radius: 12px; font-size: 1rem; outline: none; background: #fff; }
   input[type=search]:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(18,58,140,.12); }
-  .btn-api { border: 0; background: var(--azul); color: #fff; border-radius: 10px;
-             padding: 0 12px; font-size: .82rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
-  .btn-api:hover { background: var(--azul-escuro); }
-  .atalhos { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-  .chip { border: 1px solid var(--borda); background: #f8f9fc; color: var(--texto);
-          border-radius: 999px; padding: 4px 10px; font-size: .76rem; cursor: pointer; font-weight: 500; }
+  .btn-ir { border: 0; background: var(--azul); color: #fff; border-radius: 12px; padding: 0 18px;
+            font-size: .95rem; font-weight: 700; cursor: pointer; }
+  .btn-ir:hover { background: var(--azul-escuro); }
+  .btn-link { border: 0; background: none; color: var(--azul); font-weight: 600; font-size: .92rem;
+              cursor: pointer; padding: 10px 0 0; }
+  .btn-link:hover { text-decoration: underline; }
+  .local-ok { margin-top: 10px; font-size: .88rem; color: var(--verde); font-weight: 600; }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .chip { border: 1px solid var(--borda); background: #fff; color: var(--texto); border-radius: 999px;
+          padding: 6px 13px; font-size: .85rem; cursor: pointer; font-weight: 500; }
   .chip:hover, .chip.ativo { background: var(--azul); color: #fff; border-color: var(--azul); }
-  .sugestoes { max-height: 330px; overflow: auto; margin-top: 10px; padding-right: 2px; }
-  .grupo-tit { font-size: .72rem; font-weight: 700; color: var(--azul); margin: 10px 0 4px;
-               text-transform: uppercase; letter-spacing: .4px; }
-  .sug { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 6px;
-         border-bottom: 1px solid var(--borda); font-size: .88rem; cursor: pointer; border-radius: 8px; }
+  .btn-cesta { width: 100%; margin-top: 12px; border: 1px dashed #f5b28a; background: var(--laranja-claro);
+               color: #b54708; border-radius: 12px; padding: 12px; font-size: .95rem; font-weight: 700; cursor: pointer; }
+  .btn-cesta:hover { background: #ffe4d3; }
+
+  .sugestoes { max-height: 300px; overflow: auto; margin-top: 10px; }
+  .sug { display: flex; align-items: center; gap: 10px; padding: 10px 6px; border-bottom: 1px solid var(--borda);
+         cursor: pointer; border-radius: 8px; }
   .sug:hover { background: var(--laranja-claro); }
-  .sug-img { width: 36px; height: 36px; border-radius: 6px; object-fit: contain; background: #fff;
-             border: 1px solid var(--borda); flex-shrink: 0; }
-  .sug-info { flex: 1; min-width: 0; }
-  .sug-nome { font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; }
-  .sug small { color: var(--suave); font-size: .76rem; }
-  .sug-preco { font-weight: 700; color: var(--verde); font-size: .82rem; white-space: nowrap; text-align: right; }
-  .sug-add { background: var(--laranja); color: #fff; width: 26px; height: 26px; border-radius: 50%;
-             display: grid; place-items: center; font-weight: 700; flex-shrink: 0; }
-  .cart-item { display: flex; align-items: center; gap: 8px; padding: 7px 0;
-               border-bottom: 1px solid var(--borda); font-size: .88rem; }
-  .cart-item .nome { flex: 1; }
-  .cart-item input { width: 58px; padding: 5px; border: 1px solid var(--borda); border-radius: 6px; text-align: center; }
-  .cart-item button { border: 0; background: none; color: #c0392b; cursor: pointer; font-size: 1.15rem; }
-  .vazio { color: var(--suave); font-size: .88rem; text-align: center; padding: 12px 0; }
-  .btn { width: 100%; border: 0; border-radius: 12px; padding: 13px; font-size: 1rem; font-weight: 600;
-         background: var(--laranja); color: #fff; cursor: pointer; margin-top: 12px; transition: filter .15s; }
-  .btn:hover:not(:disabled) { filter: brightness(1.06); }
-  .btn:disabled { opacity: .5; cursor: default; }
-  .btn.sec { background: #fff; color: var(--azul); border: 1px solid var(--azul); margin-top: 8px;
-             padding: 8px; font-size: .86rem; }
-  .row { display: flex; gap: 8px; align-items: center; font-size: .84rem; color: var(--suave); margin-top: 10px; flex-wrap: wrap; }
-  .row input[type=number] { width: 68px; padding: 5px; border: 1px solid var(--borda); border-radius: 6px; }
-  #mapa { height: min(460px, 56vh); min-height: 320px; border-radius: 14px; border: 1px solid var(--borda);
-          background: #eef1f6; }
-  .mapa-base { filter: saturate(.65) brightness(1.03) contrast(.95); }
+  .sug img { width: 36px; height: 36px; object-fit: contain; border-radius: 8px; background: #fff; flex-shrink: 0; }
+  .sug .nome { flex: 1; min-width: 0; font-size: .95rem; }
+  .sug .nome small { display: block; color: var(--suave); font-size: .78rem; }
+  .sug .preco { font-size: .85rem; color: var(--verde); font-weight: 700; white-space: nowrap; }
+  .sug .mais { background: var(--laranja); color: #fff; width: 30px; height: 30px; border-radius: 50%;
+               display: grid; place-items: center; font-weight: 700; flex-shrink: 0; }
+
+  .item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--borda); }
+  .item .nome { flex: 1; min-width: 0; font-size: .95rem; }
+  .qtd { display: inline-flex; align-items: center; border: 1px solid var(--borda); border-radius: 10px; overflow: hidden; }
+  .qtd button { border: 0; background: #f8faff; color: var(--azul-escuro); width: 32px; height: 32px;
+                font-weight: 700; font-size: 1.05rem; cursor: pointer; }
+  .qtd span { min-width: 30px; text-align: center; font-weight: 600; }
+  .vazio { color: var(--suave); font-size: .92rem; text-align: center; padding: 14px 6px; margin: 0; }
+  .contador { font-size: .82rem; color: var(--suave); font-weight: 500; margin-left: auto; }
+
+  details.ajustes { margin-top: 14px; font-size: .9rem; color: var(--suave); }
+  details.ajustes summary { cursor: pointer; font-weight: 600; color: var(--azul); }
+  details.ajustes label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+  details.ajustes input { width: 80px; padding: 7px 8px; border: 1px solid var(--borda); border-radius: 8px; font-size: .95rem; }
+
+  .btn { width: 100%; border: 0; border-radius: 14px; padding: 16px; font-size: 1.08rem; font-weight: 800;
+         background: var(--laranja); color: #fff; cursor: pointer; margin-top: 16px;
+         box-shadow: 0 6px 18px rgba(242,107,29,.25); }
+  .btn:hover:not(:disabled) { background: var(--laranja-hover); }
+  .btn:disabled { opacity: .45; cursor: default; box-shadow: none; }
+  .erro { background: var(--erro-bg); color: var(--erro); border-radius: 10px; padding: 10px 12px;
+          font-size: .88rem; margin-top: 10px; }
+
+  #mapa { height: 300px; border-radius: 14px; border: 1px solid var(--borda); background: #eef1f6; }
+  .mapa-base { filter: saturate(.65) brightness(1.03); }
   .voce { position: relative; }
-  .voce-ponto { position: absolute; inset: 4px; border-radius: 50%; background: #2f6bff;
-                border: 3px solid #fff; box-shadow: 0 1px 6px rgba(11,37,96,.45); }
+  .voce-ponto { position: absolute; inset: 4px; border-radius: 50%; background: #2f6bff; border: 3px solid #fff;
+                box-shadow: 0 1px 6px rgba(11,37,96,.45); }
   .voce-pulso { position: absolute; inset: 0; border-radius: 50%; background: rgba(47,107,255,.35);
                 animation: pulso 2s ease-out infinite; }
   @keyframes pulso { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.6); opacity: 0; } }
-  .pino { filter: drop-shadow(0 2px 3px rgba(11,37,96,.35)); transition: transform .15s; transform-origin: 50% 100%; }
-  .pino:hover { transform: scale(1.12); }
-  .pino-badge { position: absolute; top: -7px; right: -9px; background: #fff; color: var(--verde);
-                border: 2px solid var(--verde); border-radius: 999px; font: 700 11px/1 system-ui, sans-serif;
-                padding: 2px 4px; }
-  .cluster div { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
-                 background: var(--azul); color: #fff; font: 700 13px system-ui, sans-serif;
-                 border: 3px solid #fff; box-shadow: 0 0 0 4px rgba(18,58,140,.25), 0 2px 6px rgba(11,37,96,.35); }
-  .leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: 0 6px 24px rgba(11,37,96,.22); }
-  .leaflet-popup-content { margin: 12px 14px; font-size: .88rem; }
-  .pop-tit { font-weight: 700; color: var(--azul-escuro); font-size: .98rem; }
-  .pop-rede { display: inline-block; margin: 4px 0; background: #e8eefc; color: var(--azul); border-radius: 999px;
-              padding: 1px 8px; font-size: .72rem; font-weight: 600; }
-  .pop-end { color: var(--suave); font-size: .8rem; }
-  .legenda { background: #fff; border-radius: 10px; padding: 8px 10px; font-size: .75rem; color: var(--texto);
-             box-shadow: 0 2px 8px rgba(11,37,96,.18); line-height: 1.7; }
-  .legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px;
-               border: 2px solid #fff; box-shadow: 0 0 0 1px #0002; vertical-align: -1px; }
-  .explicacao { background: var(--laranja-claro); border-left: 4px solid var(--laranja);
-                padding: 12px; border-radius: 8px; font-size: .92rem; line-height: 1.45; }
-  .ranking { margin-top: 12px; display: grid; gap: 8px; }
-  .merc { display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center;
-          padding: 12px; border: 1px solid var(--borda); border-radius: 10px; cursor: pointer; transition: border-color .15s; }
-  .merc:hover { border-color: var(--azul); }
-  .merc.top { border-color: var(--verde); background: var(--verde-claro); }
-  .merc .pos { font-weight: 700; color: var(--azul); text-align: center; font-size: .95rem; }
-  .merc .info small { color: var(--suave); display: block; margin-top: 2px; }
-  .merc .valor { text-align: right; font-weight: 700; color: var(--laranja); font-size: 1.05rem; }
-  .merc .valor small { display: block; font-weight: 400; color: var(--suave); font-size: .75rem; }
-  .falta { color: #c0392b !important; }
-  .detalhe { font-size: .83rem; margin-top: 8px; width: 100%; border-collapse: collapse; }
-  .detalhe td { padding: 4px 6px; vertical-align: top; border-top: 1px solid var(--borda); }
-  .fonte { font-size: .7rem; color: var(--suave); }
-  .tag { background: var(--verde); color: #fff; border-radius: 4px; padding: 1px 5px; font-size: .68rem; }
-  .loading-api { font-size: .82rem; color: var(--azul); padding: 10px; text-align: center; font-weight: 500; }
+  .cluster div { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+                 background: var(--azul); color: #fff; font: 700 13px system-ui; border: 3px solid #fff;
+                 box-shadow: 0 2px 6px rgba(11,37,96,.35); }
+  .dica-mapa { font-size: .8rem; color: var(--suave); margin: 8px 0 0; }
+
+  /* Resultado */
+  .placeholder { text-align: center; color: var(--suave); padding: 26px 10px; }
+  .placeholder div { font-size: 2.4rem; }
+  .vencedor { background: var(--verde-claro); border: 2px solid var(--verde); border-radius: 16px; padding: 18px; }
+  .vencedor .rot { font-size: .8rem; font-weight: 800; color: var(--verde); text-transform: uppercase; letter-spacing: .5px; }
+  .vencedor h3 { margin: 4px 0 2px; font-size: 1.3rem; color: var(--azul-escuro); }
+  .vencedor .onde { color: var(--suave); font-size: .9rem; }
+  .vencedor .total { font-size: 2rem; font-weight: 800; color: var(--verde); margin-top: 10px; }
+  .vencedor .total small { display: block; font-size: .85rem; color: var(--suave); font-weight: 500; }
+  .economia { margin-top: 12px; background: #fff; border-radius: 10px; padding: 10px 12px; font-weight: 700; color: var(--texto); }
+  .aviso-falta { margin-top: 10px; font-size: .85rem; color: var(--erro); }
+  .dica { margin-top: 12px; background: var(--azul-suave); border-radius: 12px; padding: 12px 14px; font-size: .9rem; color: var(--azul-escuro); }
+  .btn-ver { margin-top: 12px; border: 0; background: none; color: var(--azul); font-weight: 700; cursor: pointer; padding: 0; font-size: .9rem; }
+  .lista-precos { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .88rem; }
+  .lista-precos td { padding: 6px 0; border-top: 1px solid #cfe9da; }
+  .lista-precos td:last-child { text-align: right; font-weight: 600; white-space: nowrap; }
+  .tag { background: var(--laranja); color: #fff; border-radius: 4px; padding: 1px 6px; font-size: .7rem; font-weight: 700; }
+  .outras-tit { margin: 18px 0 8px; font-size: .95rem; color: var(--azul-escuro); }
+  .outra { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--borda);
+           border-radius: 12px; cursor: pointer; }
+  .outra + .outra { margin-top: 8px; }
+  .outra:hover { border-color: var(--azul); }
+  .outra .pos { font-weight: 800; color: var(--suave); width: 26px; }
+  .outra .nome { flex: 1; min-width: 0; }
+  .outra .nome small { display: block; color: var(--suave); font-size: .8rem; }
+  .outra .val { font-weight: 800; color: var(--texto); white-space: nowrap; }
+  .outra .val small { display: block; color: var(--erro); font-size: .75rem; font-weight: 600; text-align: right; }
+  .carregando { text-align: center; color: var(--azul); padding: 14px; font-weight: 600; font-size: .92rem; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Ofer<span>tão</span></h1>
-  <small>Comparador automático de supermercados em todo o Brasil</small>
-  <span class="badge-api">⚡ Consulta de APIs em Tempo Real Ativa</span>
-  <span class="status" id="status">Carregando mercados...</span>
+  <a href="/" class="logo">Ofer<span>tão</span></a>
+  <a href="/" class="voltar">← Voltar ao início</a>
 </header>
 
 <main>
   <section>
+    <!-- Passo 1 -->
     <div class="card">
-      <h2>
-        <span>1. Busque qualquer item</span>
-        <button class="chip" id="btnCestaBasica" title="Preenche uma feira pronta para testar agora">🛒 Testar Feira Básica</button>
-      </h2>
-      <div class="busca-wrap">
-        <input type="search" id="busca" placeholder="Digite qualquer produto ou marca (ex: arroz, coca cola, leite, café...)">
-        <button class="btn-api" id="btnBuscaApi" title="Consultar direto nas APIs públicas agora">Buscar na API</button>
+      <h2 class="passo"><b>1</b> Onde você está?</h2>
+      <div class="linha">
+        <input type="search" id="buscaCidade" placeholder="Seu CEP ou bairro" autocomplete="postal-code">
+        <button class="btn-ir" id="btnBuscaCidade">Buscar</button>
       </div>
-      <div class="atalhos" id="categorias">
+      <button class="btn-link" id="btnGps">📍 Usar minha localização</button>
+      <div id="resultadosCidade" class="sugestoes" style="display:none"></div>
+      <div class="local-ok" id="localOk"></div>
+      <div class="erro" id="erroLocal" hidden></div>
+    </div>
+
+    <!-- Passo 2 -->
+    <div class="card">
+      <h2 class="passo"><b>2</b> O que você vai comprar?</h2>
+      <div class="linha">
+        <input type="search" id="busca" placeholder="Ex: arroz, café, leite...">
+        <button class="btn-ir" id="btnBuscaApi">Buscar</button>
+      </div>
+      <button class="btn-cesta" id="btnCestaBasica">🛒 Usar cesta básica pronta</button>
+      <div class="chips" id="categorias">
         <span class="chip ativo" data-cat="">Todos</span>
-        <span class="chip" data-cat="Grãos">Grãos</span>
+        <span class="chip" data-cat="Grãos">Arroz e feijão</span>
         <span class="chip" data-cat="Mercearia">Mercearia</span>
-        <span class="chip" data-cat="Laticínios">Laticínios</span>
-        <span class="chip" data-cat="Proteínas">Proteínas</span>
-        <span class="chip" data-cat="Padaria">Padaria</span>
+        <span class="chip" data-cat="Laticínios">Leite e queijo</span>
+        <span class="chip" data-cat="Proteínas">Carnes</span>
         <span class="chip" data-cat="Limpeza">Limpeza</span>
         <span class="chip" data-cat="Higiene">Higiene</span>
       </div>
       <div class="sugestoes" id="sugestoes"></div>
     </div>
 
+    <!-- Lista -->
     <div class="card">
-      <h2>
-        <span>Seu Carrinho</span>
-        <button class="chip" id="btnLimpar" style="display:none">Limpar</button>
-      </h2>
-      <div id="carrinho"><p class="vazio">Adicione itens acima ou clique em "Testar Feira Básica".</p></div>
-      <div class="row">
-        Raio máx: <input type="number" id="raio" value="15" min="1"> km
-        · Custo deslocamento: R$ <input type="number" id="custoKm" value="0.80" step="0.1" min="0">/km
-      </div>
-      <button class="btn" id="btnComparar" disabled>Consultar Todos os Mercados Próximos</button>
+      <h2 class="passo"><b>3</b> Sua lista <span class="contador" id="contador"></span></h2>
+      <div id="carrinho"><p class="vazio">Sua lista está vazia. Toque em um produto acima para adicionar.</p></div>
+      <details class="ajustes">
+        <summary>⚙️ Ajustes (opcional)</summary>
+        <label>Até quantos km você vai? <span><input type="number" id="raio" value="15" min="1" max="100"> km</span></label>
+        <label>Gasto com transporte por km <span>R$ <input type="number" id="custoKm" value="0.80" step="0.10" min="0"></span></label>
+      </details>
+      <div class="erro" id="erroComparacao" hidden></div>
+      <button class="btn" id="btnComparar" disabled>Ver onde é mais barato</button>
     </div>
   </section>
 
   <section>
-    <div class="card">
-      <h2>2. Sua Localização no Brasil <small style="color:var(--suave);font-weight:400">(busque qualquer cidade/CEP ou clique no mapa)</small></h2>
-      <div class="busca-wrap" style="margin-bottom:8px">
-        <input type="search" id="buscaCidade" placeholder="Digite qualquer cidade, bairro, endereço ou CEP do Brasil...">
-        <button class="btn-api" id="btnBuscaCidade">Ir para Cidade/CEP</button>
+    <div class="card" id="resultado">
+      <div class="placeholder" id="placeholder">
+        <div>🛒</div>
+        <p><b>Seu resultado aparece aqui.</b><br>Monte sua lista e toque em "Ver onde é mais barato".</p>
       </div>
-      <div class="atalhos" id="cidadesRapidas" style="margin-bottom:10px">
-        <span class="chip" data-lat="-23.5505" data-lon="-46.6333">São Paulo</span>
-        <span class="chip" data-lat="-22.9068" data-lon="-43.1729">Rio de Janeiro</span>
-        <span class="chip" data-lat="-15.7939" data-lon="-47.8828">Brasília</span>
-        <span class="chip" data-lat="-12.9714" data-lon="-38.5014">Salvador</span>
-        <span class="chip" data-lat="-3.7319" data-lon="-38.5267">Fortaleza</span>
-        <span class="chip" data-lat="-19.9167" data-lon="-43.9345">Belo Horizonte</span>
-        <span class="chip" data-lat="-8.0476" data-lon="-34.8770">Recife</span>
-        <span class="chip" data-lat="-25.4284" data-lon="-49.2733">Curitiba</span>
-        <span class="chip" data-lat="-30.0346" data-lon="-51.2177">Porto Alegre</span>
-        <span class="chip ativo" data-lat="-5.8275" data-lon="-35.2050">Natal</span>
-      </div>
-      <div id="resultadosCidade" class="sugestoes" style="max-height:150px;margin-bottom:8px;display:none"></div>
-      <div id="mapa"></div>
-      <button class="btn sec" id="btnGps">📍 Usar minha localização atual (GPS)</button>
+      <div id="resumo"></div>
     </div>
-    <div class="card" id="resultado" hidden>
-      <h2>3. Comparação em Todos os Mercados no Raio</h2>
-      <div class="explicacao" id="explicacao"></div>
-      <div class="ranking" id="ranking"></div>
+    <div class="card">
+      <div id="mapa"></div>
+      <p class="dica-mapa" id="status">Toque no mapa para ajustar onde você está.</p>
     </div>
   </section>
 </main>
@@ -198,21 +205,18 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
-const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = v => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const FONTES = {
-  atacadao_online: "API Atacadão",
-  paodeacucar_online: "API Pão de Açúcar",
-  samsclub_online: "API Sam's Club",
-  consulta_publica: "Referência Pública Local",
-  cupom_fiscal: "Cupom Fiscal",
-  dono: "Loja Oficial",
-  encarte: "Encarte da Rede"
-};
+const $ = id => document.getElementById(id);
 const carrinho = new Map();
-let local = { lat: -5.8275, lon: -35.2050 }; // Lagoa Nova, Natal
+let local = { lat: -5.8275, lon: -35.2050 };
 let categoriaAtiva = "";
 let cacheItens = { genericos: [], produtos: [] };
+let ultimoResultado = null;
+
+const getRaio = () => Math.max(1, Math.min(100, parseFloat($("raio").value) || 15));
+const getCustoKm = () => { const v = parseFloat($("custoKm").value); return Number.isFinite(v) && v >= 0 ? v : 0.8; };
+const km = v => v.toFixed(1).replace(".", ",") + " km";
 
 // ---- Mapa ----
 const mapa = L.map("mapa", { zoomControl: false }).setView([local.lat, local.lon], 12);
@@ -221,338 +225,279 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19, className: "mapa-base",
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(mapa);
-
 const marcadorUser = L.marker([local.lat, local.lon], {
   draggable: true, zIndexOffset: 1000, keyboard: false,
   icon: L.divIcon({ className: "voce", iconSize: [22, 22], iconAnchor: [11, 11],
                     html: '<div class="voce-pulso"></div><div class="voce-ponto"></div>' })
-}).addTo(mapa).bindTooltip("Você está aqui · arraste para ajustar", { direction: "top", offset: [0, -12] });
+}).addTo(mapa).bindTooltip("Você está aqui", { direction: "top", offset: [0, -12] });
 marcadorUser.on("dragend", e => { const p = e.target.getLatLng(); moverUsuario(p.lat, p.lng); });
 
 const marcadores = new Map();
 const grupoLojas = L.markerClusterGroup({
-  showCoverageOnHover: false, maxClusterRadius: 42, spiderfyOnMaxZoom: true,
-  iconCreateFunction: c => L.divIcon({ className: "cluster", iconSize: [38, 38],
-                                       html: `<div>${c.getChildCount()}</div>` }),
+  showCoverageOnHover: false, maxClusterRadius: 42,
+  iconCreateFunction: c => L.divIcon({ className: "cluster", iconSize: [36, 36], html: `<div>${c.getChildCount()}</div>` }),
 }).addTo(mapa);
 const camadaDestaque = L.layerGroup().addTo(mapa);
 let rota = null;
 
-async function moverUsuario(lat, lon, centralizar = false) {
-  local = { lat, lon };
-  marcadorUser.setLatLng([lat, lon]);
-  if (centralizar) mapa.setView([lat, lon], 13);
-  if (rota) { rota.remove(); rota = null; }
-  await carregarMercados();
-  if (carrinho.size > 0) compararMercados();
-}
-mapa.on("click", e => moverUsuario(e.latlng.lat, e.latlng.lng));
-document.getElementById("btnGps").onclick = () => navigator.geolocation?.getCurrentPosition(
-  p => moverUsuario(p.coords.latitude, p.coords.longitude, true),
-  () => alert("Não foi possível obter sua localização."));
-
-document.getElementById("cidadesRapidas").onclick = e => {
-  const chip = e.target.closest(".chip");
-  if (!chip) return;
-  document.querySelectorAll("#cidadesRapidas .chip").forEach(c => c.classList.toggle("ativo", c === chip));
-  moverUsuario(+chip.dataset.lat, +chip.dataset.lon, true);
-};
-
-async function buscarCidadeCep() {
-  const q = document.getElementById("buscaCidade").value.trim();
-  if (q.length < 2) return;
-  const box = document.getElementById("resultadosCidade");
-  box.style.display = "block";
-  box.innerHTML = `<div class="loading-api">🔎 Localizando "${esc(q)}" no Brasil...</div>`;
-  const locs = await (await fetch(`/api/localidades?q=${encodeURIComponent(q)}`)).json();
-  if (!locs.length) {
-    box.innerHTML = `<div class="vazio">Localidade não encontrada. Tente cidade + UF ou CEP.</div>`;
-    return;
-  }
-  if (locs.length === 1) {
-    box.style.display = "none";
-    document.querySelectorAll("#cidadesRapidas .chip").forEach(c => c.classList.remove("ativo"));
-    moverUsuario(locs[0].lat, locs[0].lon, true);
-    return;
-  }
-  box.innerHTML = locs.map(l => `
-    <div class="sug" data-lat="${l.lat}" data-lon="${l.lon}">
-      <div class="sug-info">
-        <span class="sug-nome">${esc(l.nome)}</span>
-      </div>
-      <span class="sug-add">→</span>
-    </div>`).join("");
-}
-document.getElementById("btnBuscaCidade").onclick = buscarCidadeCep;
-document.getElementById("buscaCidade").onkeydown = e => { if (e.key === "Enter") buscarCidadeCep(); };
-document.getElementById("resultadosCidade").onclick = e => {
-  const el = e.target.closest(".sug");
-  if (!el) return;
-  document.getElementById("resultadosCidade").style.display = "none";
-  document.querySelectorAll("#cidadesRapidas .chip").forEach(c => c.classList.remove("ativo"));
-  moverUsuario(+el.dataset.lat, +el.dataset.lon, true);
-};
-
-const CORES = { normal: "#123a8c", melhor: "#1a9b55", dividir: "#f26b1d" };
-function pino(estado = "normal", rotulo = "") {
-  const g = estado === "melhor", w = g ? 38 : 28, h = g ? 50 : 37, cor = CORES[estado];
+const CORES = { normal: "#123a8c", melhor: "#1a9b55" };
+function pino(estado = "normal") {
+  const g = estado === "melhor", w = g ? 38 : 26, h = g ? 50 : 34, cor = CORES[estado];
   return L.divIcon({
     className: "", iconSize: [w, h], iconAnchor: [w / 2, h - 1], popupAnchor: [0, -h + 6],
-    html: `<div class="pino" style="position:relative;width:${w}px;height:${h}px">
-      <svg viewBox="0 0 28 37" width="${w}" height="${h}" aria-hidden="true">
-        <path d="M14 36s12-11.6 12-21.5C26 7.6 20.6 2 14 2S2 7.6 2 14.5C2 24.4 14 36 14 36z"
-              fill="${cor}" stroke="#fff" stroke-width="2"/>
-        <g fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 9.5h2l1.6 7.2h7.2l1.5-5.2H11"/>
-        </g>
-        <circle cx="12.6" cy="19.3" r="1.2" fill="#fff"/><circle cx="18" cy="19.3" r="1.2" fill="#fff"/>
-      </svg>${rotulo ? `<span class="pino-badge">${rotulo}</span>` : ""}</div>`,
+    html: `<svg viewBox="0 0 28 37" width="${w}" height="${h}" style="filter:drop-shadow(0 2px 3px #0b256055)">
+      <path d="M14 36s12-11.6 12-21.5C26 7.6 20.6 2 14 2S2 7.6 2 14.5C2 24.4 14 36 14 36z" fill="${cor}" stroke="#fff" stroke-width="2"/>
+      <circle cx="14" cy="14" r="4.5" fill="#fff"/></svg>`,
   });
 }
 
-const legenda = L.control({ position: "topright" });
-legenda.onAdd = () => {
-  const d = L.DomUtil.create("div", "legenda");
-  d.innerHTML = `<div><i style="background:#2f6bff"></i>Você</div>
-    <div><i style="background:${CORES.normal}"></i>Mercado Público</div>
-    <div><i style="background:${CORES.melhor}"></i>Mais Barato</div>
-    <div><i style="background:${CORES.dividir}"></i>Dividir Compra</div>`;
-  return d;
-};
-legenda.addTo(mapa);
+function mostrarErroLocal(msg) { $("erroLocal").hidden = !msg; $("erroLocal").textContent = msg || ""; }
 
-function popupLoja(m) {
-  return `<div class="pop-tit">${esc(m.nome)}</div>
-    ${m.rede ? `<span class="pop-rede">${esc(m.rede)}</span>` : `<span class="pop-rede">Mercado Local</span>`}
-    <div class="pop-end">${esc([m.endereco, m.bairro, m.cidade].filter(Boolean).join(" · "))}</div>`;
+async function moverUsuario(lat, lon, centralizar = false, nome = "") {
+  mostrarErroLocal("");
+  local = { lat, lon };
+  marcadorUser.setLatLng([lat, lon]);
+  if (centralizar) mapa.setView([lat, lon], 13);
+  $("localOk").textContent = nome ? `✓ ${nome}` : "✓ Localização definida";
+  await carregarMercados();
+  if (carrinho.size > 0 && ultimoResultado) compararMercados();
 }
+mapa.on("click", e => moverUsuario(e.latlng.lat, e.latlng.lng));
+$("btnGps").onclick = () => {
+  if (!navigator.geolocation) return mostrarErroLocal("Seu celular não liberou a localização. Digite seu CEP ou bairro.");
+  $("localOk").textContent = "Buscando sua localização...";
+  navigator.geolocation.getCurrentPosition(
+    p => moverUsuario(p.coords.latitude, p.coords.longitude, true, "Usando sua localização atual"),
+    () => { $("localOk").textContent = ""; mostrarErroLocal("Não conseguimos sua localização. Digite seu CEP ou bairro."); }
+  );
+};
+
+async function buscarCidadeCep() {
+  const q = $("buscaCidade").value.trim();
+  if (q.length < 2) return;
+  const box = $("resultadosCidade");
+  box.style.display = "block";
+  box.innerHTML = `<div class="carregando">Procurando...</div>`;
+  try {
+    const resp = await fetch(`/api/localidades?q=${encodeURIComponent(q)}`);
+    if (!resp.ok) throw 0;
+    const locs = await resp.json();
+    if (!locs.length) { box.innerHTML = `<p class="vazio">Não achamos esse endereço. Tente com a cidade junto.</p>`; return; }
+    if (locs.length === 1) { box.style.display = "none"; return moverUsuario(locs[0].lat, locs[0].lon, true, locs[0].nome); }
+    box.innerHTML = '<p style="font-size:.85rem;color:var(--suave);margin:4px 0">Qual desses?</p>' + locs.map(l => `
+      <div class="sug" data-lat="${l.lat}" data-lon="${l.lon}" data-nome="${esc(l.nome)}">
+        <span class="nome">${esc(l.nome)}</span><span class="mais">→</span></div>`).join("");
+  } catch { box.innerHTML = `<p class="vazio">Não deu para buscar agora. Tente de novo.</p>`; }
+}
+$("btnBuscaCidade").onclick = buscarCidadeCep;
+$("buscaCidade").onkeydown = e => { if (e.key === "Enter") buscarCidadeCep(); };
+$("resultadosCidade").onclick = e => {
+  const el = e.target.closest(".sug"); if (!el) return;
+  $("resultadosCidade").style.display = "none";
+  moverUsuario(+el.dataset.lat, +el.dataset.lon, true, el.dataset.nome);
+};
 
 let ctrlMercados = null;
 async function carregarMercados() {
   if (ctrlMercados) ctrlMercados.abort();
   ctrlMercados = new AbortController();
-  const raio = +document.getElementById("raio").value || 15;
-  document.getElementById("status").textContent = "Localizando supermercados no raio...";
+  $("status").textContent = "Procurando mercados perto de você...";
   try {
-    const r = await fetch(`/api/mercados?lat=${local.lat}&lon=${local.lon}&raio_km=${raio}`, { signal: ctrlMercados.signal });
+    const r = await fetch(`/api/mercados?lat=${local.lat}&lon=${local.lon}&raio_km=${getRaio()}`, { signal: ctrlMercados.signal });
+    if (!r.ok) throw 0;
     const mercados = await r.json();
-    grupoLojas.clearLayers();
-    marcadores.clear();
+    camadaDestaque.clearLayers(); grupoLojas.clearLayers(); marcadores.clear();
+    if (rota) { rota.remove(); rota = null; }
     for (const m of mercados) {
       const mk = L.marker([m.lat, m.lon], { icon: pino(), title: m.nome })
-        .bindPopup(popupLoja(m), { maxWidth: 260 });
-      marcadores.set(m.id, mk);
-      grupoLojas.addLayer(mk);
+        .bindPopup(`<b>${esc(m.nome)}</b><br><small>${esc([m.endereco, m.bairro].filter(Boolean).join(" · "))}</small>`);
+      marcadores.set(m.id, mk); grupoLojas.addLayer(mk);
     }
-    carregarStatus();
-  } catch (e) {
-    if (e.name !== "AbortError") carregarStatus();
-  }
+    $("status").textContent = mercados.length
+      ? `${mercados.length} mercados perto de você · toque no mapa para ajustar sua posição`
+      : "Nenhum mercado nessa área. Aumente a distância em Ajustes.";
+  } catch (e) { if (e.name !== "AbortError") $("status").textContent = "Toque no mapa para ajustar onde você está."; }
 }
 
-async function carregarStatus() {
-  const s = await (await fetch("/api/status")).json();
-  document.getElementById("status").textContent =
-    `${s.lojas} supermercados locais mapeados · ${s.produtos} produtos consultados`;
-}
-
+// ---- Produtos ----
 function renderSugestoes() {
   const r = cacheItens;
-  const genericosFiltrados = categoriaAtiva
-    ? r.genericos.filter(g => g.categoria === categoriaAtiva)
-    : r.genericos;
-
-  let html = "";
-  if (genericosFiltrados.length) {
-    html += '<div class="grupo-tit">Itens da Feira (compara a marca mais barata em cada mercado)</div>' +
-      genericosFiltrados.map(g => `
-        <div class="sug" data-tipo="g" data-id="${g.id}" data-nome="${esc(g.nome)}">
-          ${g.imagem_url ? `<img class="sug-img" src="${esc(g.imagem_url)}" alt="">` : ""}
-          <div class="sug-info">
-            <span class="sug-nome">${esc(g.nome)}</span>
-            <small>${esc(g.categoria)}</small>
-          </div>
-          ${g.menor_preco ? `<span class="sug-preco">a partir de<br>${brl(g.menor_preco)}</span>` : `<span class="sug-preco"><small>Consulta ao vivo</small></span>`}
-          <span class="sug-add">+</span>
-        </div>`).join("");
-  }
-  if (r.produtos.length && !categoriaAtiva) {
-    html += '<div class="grupo-tit">Produtos Específicos Encontrados nas APIs</div>' +
-      r.produtos.map(p => `
-        <div class="sug" data-tipo="p" data-id="${p.id}" data-nome="${esc(p.nome)}">
-          ${p.imagem_url ? `<img class="sug-img" src="${esc(p.imagem_url)}" alt="">` : ""}
-          <div class="sug-info">
-            <span class="sug-nome">${esc(p.nome)}</span>
-            <small>${esc([p.marca, p.ean ? "EAN " + p.ean : ""].filter(Boolean).join(" · "))}</small>
-          </div>
-          ${p.menor_preco ? `<span class="sug-preco">a partir de<br>${brl(p.menor_preco)}</span>` : ""}
-          <span class="sug-add">+</span>
-        </div>`).join("");
-  }
-  document.getElementById("sugestoes").innerHTML = html || '<p class="vazio">Digite um produto e clique em "Buscar na API" para consultar em tempo real.</p>';
+  const gen = categoriaAtiva ? r.genericos.filter(g => g.categoria === categoriaAtiva) : r.genericos;
+  const linha = (tipo, x, sub) => `
+    <div class="sug" data-tipo="${tipo}" data-id="${x.id}" data-nome="${esc(x.nome)}">
+      ${x.imagem_url ? `<img src="${esc(x.imagem_url)}" alt="">` : ""}
+      <span class="nome">${esc(x.nome)}${sub ? `<small>${esc(sub)}</small>` : ""}</span>
+      ${x.menor_preco ? `<span class="preco">${brl(x.menor_preco)}</span>` : ""}
+      <span class="mais">+</span>
+    </div>`;
+  let html = gen.map(g => linha("g", g, "")).join("");
+  if (r.produtos.length && !categoriaAtiva) html += r.produtos.map(p => linha("p", p, p.marca || "")).join("");
+  $("sugestoes").innerHTML = html || '<p class="vazio">Nada encontrado. Tente outro nome.</p>';
 }
 
-async function buscar(q, forcarApi = false) {
-  const box = document.getElementById("sugestoes");
-  if (q && q.length >= 2) {
-    box.innerHTML = `<div class="loading-api">🔄 Consultando "${esc(q)}" apenas nos mercados do raio...</div>`;
-  }
-  const params = new URLSearchParams();
+let ctrlBusca = null;
+async function buscar(q, aoVivo = false) {
+  if (ctrlBusca) ctrlBusca.abort();
+  ctrlBusca = new AbortController();
+  if (q && q.length >= 2) $("sugestoes").innerHTML = `<div class="carregando">Procurando "${esc(q)}"...</div>`;
+  const params = new URLSearchParams({ lat: local.lat, lon: local.lon, raio_km: getRaio() });
   if (q) params.set("q", q);
-  if (forcarApi) params.set("ao_vivo", "true");
-  params.set("lat", local.lat);
-  params.set("lon", local.lon);
-  params.set("raio_km", +document.getElementById("raio").value || 15);
-  const r = await (await fetch("/api/itens?" + params.toString())).json();
-  cacheItens = r;
-  renderSugestoes();
-  if (r.consultou_api) carregarStatus();
+  if (aoVivo) params.set("ao_vivo", "true");
+  try {
+    const resp = await fetch("/api/itens?" + params, { signal: ctrlBusca.signal });
+    if (!resp.ok) throw 0;
+    cacheItens = await resp.json();
+    renderSugestoes();
+  } catch (e) {
+    if (e.name !== "AbortError") $("sugestoes").innerHTML = `<p class="vazio">Não deu para buscar agora. Tente de novo.</p>`;
+  }
 }
-
 let tBusca;
-document.getElementById("busca").oninput = e => {
+$("busca").oninput = e => {
   clearTimeout(tBusca);
   const v = e.target.value.trim();
-  if (v) {
-    categoriaAtiva = "";
-    document.querySelectorAll("#categorias .chip").forEach(c => c.classList.toggle("ativo", c.dataset.cat === ""));
-  }
-  tBusca = setTimeout(() => buscar(v, false), 350);
+  if (v) { categoriaAtiva = ""; document.querySelectorAll("#categorias .chip").forEach(c => c.classList.toggle("ativo", c.dataset.cat === "")); }
+  tBusca = setTimeout(() => buscar(v), 350);
 };
-
-document.getElementById("btnBuscaApi").onclick = () => {
-  const v = document.getElementById("busca").value.trim();
-  if (v.length >= 2) buscar(v, true);
-};
-
-document.getElementById("categorias").onclick = e => {
-  const chip = e.target.closest(".chip");
-  if (!chip) return;
+$("busca").onkeydown = e => { if (e.key === "Enter") { clearTimeout(tBusca); const v = e.target.value.trim(); buscar(v, v.length >= 2); } };
+$("btnBuscaApi").onclick = () => { const v = $("busca").value.trim(); buscar(v, v.length >= 2); };
+$("categorias").onclick = e => {
+  const chip = e.target.closest(".chip"); if (!chip) return;
   categoriaAtiva = chip.dataset.cat || "";
   document.querySelectorAll("#categorias .chip").forEach(c => c.classList.toggle("ativo", c === chip));
   renderSugestoes();
 };
-
-document.getElementById("sugestoes").onclick = e => {
+$("sugestoes").onclick = e => {
   const el = e.target.closest(".sug"); if (!el) return;
-  const chave = `${el.dataset.tipo}:${el.dataset.id}`;
-  const atual = carrinho.get(chave);
-  carrinho.set(chave, {
-    tipo: el.dataset.tipo,
-    id: +el.dataset.id,
-    nome: el.dataset.nome,
-    quantidade: (atual?.quantidade || 0) + 1
-  });
+  const k = `${el.dataset.tipo}:${el.dataset.id}`;
+  const atual = carrinho.get(k);
+  carrinho.set(k, { tipo: el.dataset.tipo, id: +el.dataset.id, nome: el.dataset.nome, quantidade: (atual?.quantidade || 0) + 1 });
   renderCarrinho();
 };
-
-document.getElementById("btnCestaBasica").onclick = async () => {
+$("btnCestaBasica").onclick = async () => {
   if (!cacheItens.genericos.length) await buscar("");
-  const slugsBasicos = ["arroz-5kg", "feijao-carioca-1kg", "cafe-250g", "leite-uht-1l", "oleo-soja-900ml", "acucar-cristal-1kg"];
-  for (const g of cacheItens.genericos) {
-    if (slugsBasicos.includes(g.slug)) {
-      carrinho.set(`g:${g.id}`, { tipo: "g", id: g.id, nome: g.nome, quantidade: 1 });
-    }
-  }
+  const basicos = ["arroz-5kg", "feijao-carioca-1kg", "cafe-250g", "leite-uht-1l", "oleo-soja-900ml", "acucar-cristal-1kg"];
+  for (const g of cacheItens.genericos)
+    if (basicos.includes(g.slug)) carrinho.set(`g:${g.id}`, { tipo: "g", id: g.id, nome: g.nome, quantidade: 1 });
   renderCarrinho();
-  compararMercados();
-};
-
-document.getElementById("btnLimpar").onclick = () => {
-  carrinho.clear();
-  renderCarrinho();
-  document.getElementById("resultado").hidden = true;
+  if (carrinho.size) compararMercados();
 };
 
 function renderCarrinho() {
-  const div = document.getElementById("carrinho");
-  document.getElementById("btnComparar").disabled = carrinho.size === 0;
-  document.getElementById("btnLimpar").style.display = carrinho.size ? "inline-block" : "none";
-  if (!carrinho.size) {
-    div.innerHTML = '<p class="vazio">Adicione itens acima ou clique em "Testar Feira Básica".</p>';
-    return;
-  }
-  div.innerHTML = [...carrinho.entries()].map(([k, c]) =>
-    `<div class="cart-item"><span class="nome">${esc(c.nome)}<br><small style="color:var(--suave)">${c.tipo === "g" ? "menor preço da categoria" : "produto específico"}</small></span>
-     <input type="number" min="1" step="1" value="${c.quantidade}" data-k="${k}">
-     <button data-rm="${k}" title="Remover">×</button></div>`).join("");
+  $("btnComparar").disabled = carrinho.size === 0;
+  const n = [...carrinho.values()].reduce((s, c) => s + c.quantidade, 0);
+  $("contador").textContent = n ? `${n} ${n === 1 ? "item" : "itens"}` : "";
+  if (!carrinho.size) { $("carrinho").innerHTML = '<p class="vazio">Sua lista está vazia. Toque em um produto acima para adicionar.</p>'; return; }
+  $("carrinho").innerHTML = [...carrinho.entries()].map(([k, c]) => `
+    <div class="item">
+      <span class="nome">${esc(c.nome)}</span>
+      <div class="qtd"><button data-dec="${k}" aria-label="Menos">−</button><span>${c.quantidade}</span><button data-inc="${k}" aria-label="Mais">+</button></div>
+    </div>`).join("") +
+    `<button class="btn-link" id="btnLimpar">Limpar lista</button>`;
 }
-document.getElementById("carrinho").oninput = e => {
-  const k = e.target.dataset.k; if (k) carrinho.get(k).quantidade = Math.max(1, +e.target.value || 1);
+$("carrinho").onclick = e => {
+  if (e.target.id === "btnLimpar") { carrinho.clear(); renderCarrinho(); limparResultado(); return; }
+  const inc = e.target.dataset.inc, dec = e.target.dataset.dec;
+  if (inc && carrinho.has(inc)) carrinho.get(inc).quantidade++;
+  if (dec && carrinho.has(dec)) { const it = carrinho.get(dec); it.quantidade > 1 ? it.quantidade-- : carrinho.delete(dec); }
+  renderCarrinho();
 };
-document.getElementById("carrinho").onclick = e => {
-  const k = e.target.dataset.rm; if (k) { carrinho.delete(k); renderCarrinho(); }
-};
+$("raio").onchange = async () => { await carregarMercados(); if (carrinho.size && ultimoResultado) compararMercados(); };
+$("custoKm").onchange = () => { if (carrinho.size && ultimoResultado) compararMercados(); };
 
-// ---- Recomendação ----
+// ---- Resultado ----
+function limparResultado() {
+  ultimoResultado = null;
+  $("resumo").innerHTML = ""; $("placeholder").hidden = false; $("erroComparacao").hidden = true;
+}
+
 async function compararMercados() {
-  const btn = document.getElementById("btnComparar");
-  btn.disabled = true;
-  btn.textContent = "⚡ Consultando APIs e comparando mercados locais...";
+  if (!carrinho.size) return;
+  const btn = $("btnComparar");
+  $("erroComparacao").hidden = true;
+  btn.disabled = true; btn.textContent = "Calculando...";
   try {
     const resp = await fetch("/api/recomendar", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        lat: local.lat, lon: local.lon,
-        raio_km: +document.getElementById("raio").value,
-        custo_km: +document.getElementById("custoKm").value,
+        lat: local.lat, lon: local.lon, raio_km: getRaio(), custo_km: getCustoKm(),
         itens: [...carrinho.values()].map(c => ({ [c.tipo === "g" ? "grupo_id" : "produto_id"]: c.id, quantidade: c.quantidade })),
       }),
     });
+    if (!resp.ok) throw 0;
     renderResultado(await resp.json());
-    carregarStatus();
+    if (window.innerWidth < 940) $("resultado").scrollIntoView({ behavior: "smooth" });
+  } catch {
+    $("erroComparacao").textContent = "Algo deu errado. Tente de novo em instantes.";
+    $("erroComparacao").hidden = false;
   } finally {
-    btn.disabled = carrinho.size === 0;
-    btn.textContent = "Consultar Todos os Mercados Próximos";
+    btn.disabled = carrinho.size === 0; btn.textContent = "Ver onde é mais barato";
   }
 }
-document.getElementById("btnComparar").onclick = compararMercados;
+$("btnComparar").onclick = compararMercados;
 
 function renderResultado(r) {
-  document.getElementById("resultado").hidden = false;
-  document.getElementById("explicacao").textContent = r.explicacao;
-  camadaDestaque.eachLayer(mk => { mk.setIcon(pino()).setZIndexOffset(0); grupoLojas.addLayer(mk); });
+  ultimoResultado = r;
+  $("placeholder").hidden = true;
+  camadaDestaque.eachLayer(mk => { mk.setIcon(pino()); grupoLojas.addLayer(mk); });
   camadaDestaque.clearLayers();
   if (rota) { rota.remove(); rota = null; }
-  const destacar = (id, estado, rotulo) => {
-    const mk = marcadores.get(id);
-    if (!mk) return;
-    grupoLojas.removeLayer(mk);
-    mk.setIcon(pino(estado, rotulo)).setZIndexOffset(estado === "melhor" ? 900 : 500);
-    camadaDestaque.addLayer(mk);
-  };
-  r.divisao?.partes.forEach(p => destacar(p.mercado_id, "dividir"));
-  if (r.melhor) {
-    destacar(r.melhor.mercado_id, "melhor", "1º");
-    rota = L.polyline([[local.lat, local.lon], [r.melhor.lat, r.melhor.lon]],
-      { color: CORES.melhor, weight: 4, opacity: .85, dashArray: "2 9", lineCap: "round" }).addTo(mapa);
-    mapa.fitBounds([[local.lat, local.lon], [r.melhor.lat, r.melhor.lon]], { padding: [70, 70], maxZoom: 15 });
+
+  const m = r.ranking?.[0];
+  if (!m) {
+    $("resumo").innerHTML = `<div class="placeholder"><div>😕</div><p>${esc(r.explicacao || "Ainda não temos preços para esses produtos perto de você.")}</p>
+      <p style="font-size:.88rem">Dica: aumente a distância em <b>Ajustes</b> ou troque alguns produtos.</p></div>`;
+    return;
   }
-  document.getElementById("ranking").innerHTML = r.ranking.slice(0, 30).map((m, i) => `
-    <div class="merc ${i === 0 ? "top" : ""}" data-id="${m.mercado_id}">
-      <div class="pos">${i + 1}º</div>
-      <div class="info">
-        <b>${esc(m.nome)}</b> ${m.rede ? `<span class="pop-rede">${esc(m.rede)}</span>` : ""}
-        <small>${esc([m.endereco, m.cidade].filter(Boolean).join(" · "))} · ${m.distancia_km.toFixed(1)} km (ida e volta: ${brl(m.custo_deslocamento)})</small>
-        ${m.faltantes.length ? `<small class="falta">Sem cotação para: ${esc(m.faltantes.join(", "))}</small>` : ""}
-        <table class="detalhe" ${i === 0 ? "" : "hidden"}>${m.itens.map(it =>
-          `<tr><td>${it.quantidade}× ${esc(it.produto)} ${it.promocao ? '<span class="tag">oferta</span>' : ""}
-             <br><span class="fonte">${esc(FONTES[it.fonte] || it.fonte)}</span></td>
-             <td style="text-align:right;font-weight:600">${brl(it.subtotal)}</td></tr>`).join("")}
-          <tr><td>Deslocamento (ida e volta)</td><td style="text-align:right">${brl(m.custo_deslocamento)}</td></tr></table>
-      </div>
-      <div class="valor">${brl(m.custo_total)}<small>produtos: ${brl(m.subtotal_carrinho)}</small></div>
-    </div>`).join("");
+  const pior = r.ranking[r.ranking.length - 1];
+  const economia = r.ranking.length > 1 ? pior.custo_total - m.custo_total : 0;
+
+  let html = `<div class="vencedor">
+    <div class="rot">🏆 Mais barato pra você</div>
+    <h3>${esc(m.nome)}</h3>
+    <div class="onde">${esc([m.bairro || m.endereco, m.cidade].filter(Boolean).join(" · "))} · ${km(m.distancia_km)} de você</div>
+    <div class="total">${brl(m.custo_total)}<small>${brl(m.subtotal_carrinho)} em produtos + ${brl(m.custo_deslocamento)} de transporte</small></div>
+    ${economia > 0.01 ? `<div class="economia">💰 Você economiza ${brl(economia)} comparado ao mais caro</div>` : ""}
+    ${m.faltantes.length ? `<div class="aviso-falta">Sem preço lá para: ${esc(m.faltantes.join(", "))}</div>` : ""}
+    <button class="btn-ver" id="btnVerItens">Ver preço de cada produto ▾</button>
+    <table class="lista-precos" id="tabItens" hidden>${m.itens.map(it => `
+      <tr><td>${it.quantidade}× ${esc(it.produto)} ${it.promocao ? '<span class="tag">oferta</span>' : ""}</td><td>${brl(it.subtotal)}</td></tr>`).join("")}
+    </table>
+  </div>`;
+
+  if (r.divisao?.partes?.length === 2) {
+    const [a, b] = r.divisao.partes;
+    html += `<div class="dica">💡 <b>Quer economizar mais ${brl(r.divisao.economia_vs_melhor_unico)}?</b>
+      Compre parte no <b>${esc(a.nome)}</b> e parte no <b>${esc(b.nome)}</b>.</div>`;
+  }
+
+  const outras = r.ranking.slice(1, 5);
+  if (outras.length) {
+    html += `<h4 class="outras-tit">Outras opções</h4>` + outras.map((o, i) => `
+      <div class="outra" data-id="${o.mercado_id}">
+        <span class="pos">${i + 2}º</span>
+        <span class="nome"><b>${esc(o.nome)}</b><small>${km(o.distancia_km)} de você</small></span>
+        <span class="val">${brl(o.custo_total)}<small>+${brl(o.custo_total - m.custo_total)}</small></span>
+      </div>`).join("");
+  }
+  $("resumo").innerHTML = html;
+  $("btnVerItens").onclick = () => { const t = $("tabItens"); t.hidden = !t.hidden; };
+
+  const mk = marcadores.get(m.mercado_id);
+  if (mk) { grupoLojas.removeLayer(mk); mk.setIcon(pino("melhor")).setZIndexOffset(900); camadaDestaque.addLayer(mk); }
+  rota = L.polyline([[local.lat, local.lon], [m.lat, m.lon]], { color: CORES.melhor, weight: 4, dashArray: "2 9", lineCap: "round" }).addTo(mapa);
+  mapa.fitBounds([[local.lat, local.lon], [m.lat, m.lon]], { padding: [60, 60], maxZoom: 15 });
 }
-document.getElementById("ranking").onclick = e => {
-  const el = e.target.closest(".merc"); if (!el) return;
-  const t = el.querySelector(".detalhe"); t.hidden = !t.hidden;
-  const mk = marcadores.get(+el.dataset.id);
-  if (mk && grupoLojas.hasLayer(mk)) grupoLojas.zoomToShowLayer(mk, () => mk.openPopup());
-  else mk?.openPopup();
+
+$("resumo").onclick = e => {
+  const el = e.target.closest(".outra"); if (!el) return;
+  const mk = marcadores.get(+el.dataset.id); if (!mk) return;
+  grupoLojas.hasLayer(mk) ? grupoLojas.zoomToShowLayer(mk, () => mk.openPopup()) : (mapa.panTo(mk.getLatLng()), mk.openPopup());
+  $("mapa").scrollIntoView({ behavior: "smooth", block: "center" });
 };
 
-carregarStatus(); carregarMercados(); buscar("");
+carregarMercados();
+buscar("");
 </script>
 </body>
 </html>

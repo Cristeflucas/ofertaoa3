@@ -51,15 +51,17 @@ def recomendar(session: Session, pedido: PedidoRecomendacao) -> RespostaRecomend
     grupo_ids = [i for t, i in quantidades if t == "g"]
     produto_ids = [i for t, i in quantidades if t == "p"]
     rotulos: dict[Chave, str] = {}
-    for g in session.exec(select(ItemGenerico).where(col(ItemGenerico.id).in_(grupo_ids))):
-        rotulos[("g", g.id)] = g.nome
-    for p in session.exec(select(Produto).where(col(Produto.id).in_(produto_ids))):
-        rotulos[("p", p.id)] = p.nome
+    if grupo_ids:
+        for g in session.exec(select(ItemGenerico).where(col(ItemGenerico.id).in_(grupo_ids))):
+            rotulos[("g", g.id)] = g.nome
+    if produto_ids:
+        for p in session.exec(select(Produto).where(col(Produto.id).in_(produto_ids))):
+            rotulos[("p", p.id)] = p.nome
     quantidades = {k: q for k, q in quantidades.items() if k in rotulos}
 
     vazio = dict(melhor=None, ranking=[], divisao=None, lojas_no_raio=0, lojas_sem_dados=0)
     if not quantidades:
-        return RespostaRecomendacao(**vazio, explicacao="Nenhum item válido no carrinho.")
+        return RespostaRecomendacao(**vazio, explicacao="Nenhum item válido na sua lista.")
 
     mercados = {
         m.id: (m, d)
@@ -68,8 +70,14 @@ def recomendar(session: Session, pedido: PedidoRecomendacao) -> RespostaRecomend
     }
     if not mercados:
         return RespostaRecomendacao(
-            **vazio, explicacao=f"Nenhuma loja num raio de {pedido.raio_km:.0f} km."
+            **vazio, explicacao=f"Nenhum supermercado encontrado em até {pedido.raio_km:.0f} km."
         )
+
+    filtros_item = []
+    if produto_ids:
+        filtros_item.append(col(Produto.id).in_(produto_ids))
+    if grupo_ids:
+        filtros_item.append(col(Produto.grupo_id).in_(grupo_ids))
 
     limite = datetime.now(UTC) - timedelta(days=pedido.max_idade_dias)
     linhas = session.exec(
@@ -79,7 +87,7 @@ def recomendar(session: Session, pedido: PedidoRecomendacao) -> RespostaRecomend
             col(Preco.mercado_id).in_(mercados),
             Preco.coletado_em >= limite,
             or_(col(Preco.valido_ate).is_(None), Preco.valido_ate >= datetime.now(UTC)),
-            or_(col(Produto.id).in_(produto_ids), col(Produto.grupo_id).in_(grupo_ids)),
+            or_(*filtros_item),
         )
     ).all()
 
@@ -103,8 +111,8 @@ def recomendar(session: Session, pedido: PedidoRecomendacao) -> RespostaRecomend
         return RespostaRecomendacao(
             **{**vazio, "lojas_no_raio": len(mercados), "lojas_sem_dados": len(mercados)},
             explicacao=(
-                f"Há {len(mercados)} lojas no raio, mas ainda nenhuma tem preço para esses itens. "
-                "Envie um cupom fiscal de uma delas para começar!"
+                f"Encontramos {len(mercados)} mercados perto de você, mas ainda não temos preços para esses itens por lá. "
+                "Tente buscar outro produto ou aumentar a distância máxima."
             ),
         )
 
@@ -204,13 +212,13 @@ def _brl(v: float) -> str:
 
 
 NOMES_FONTE = {
-    "atacadao_online": "API pública Atacadão",
-    "paodeacucar_online": "API pública Pão de Açúcar",
-    "samsclub_online": "API pública Sam's Club",
-    "consulta_publica": "consulta de referência pública local",
-    "cupom_fiscal": "cupom fiscal enviado por usuário",
+    "atacadao_online": "Atacadão Online",
+    "paodeacucar_online": "Pão de Açúcar Online",
+    "samsclub_online": "Sam's Club Online",
+    "consulta_publica": "referência da região",
+    "cupom_fiscal": "cupom fiscal de cliente",
     "dono": "informado pela loja",
-    "encarte": "encarte de ofertas da rede",
+    "encarte": "encarte da semana",
 }
 
 
@@ -218,12 +226,12 @@ def _explicar(ranking: list[ResultadoMercado], divisao: ResultadoDivisao | None,
               sem_dados: int) -> str:
     m = ranking[0]
     partes = [
-        f"A melhor opção é {m.nome}{f' ({m.cidade})' if m.cidade else ''}, a {m.distancia_km:.1f} km: "
-        f"{_brl(m.subtotal_carrinho)} na feira + {_brl(m.custo_deslocamento)} de deslocamento "
+        f"A melhor opção é {m.nome}{f' ({m.cidade})' if m.cidade else ''}, a {m.distancia_km:.1f} km de você: "
+        f"{_brl(m.subtotal_carrinho)} nos produtos + {_brl(m.custo_deslocamento)} de ida e volta "
         f"= {_brl(m.custo_total)}."
     ]
     if m.faltantes:
-        partes.append(f"Lá não encontramos preço para: {', '.join(m.faltantes)}.")
+        partes.append(f"Não encontramos preço lá para: {', '.join(m.faltantes)}.")
     completos = [r for r in ranking if r.completo]
     if len(completos) > 1 and m.completo:
         mais_caro = max(completos, key=lambda r: r.custo_total)
@@ -233,13 +241,13 @@ def _explicar(ranking: list[ResultadoMercado], divisao: ResultadoDivisao | None,
                 f"mais caro ({mais_caro.nome})."
             )
     fontes = sorted({NOMES_FONTE.get(i.fonte, i.fonte) for i in m.itens})
-    partes.append(f"Fonte dos preços: {', '.join(fontes)}.")
+    partes.append(f"Preços baseados em: {', '.join(fontes)}.")
     if divisao:
         a, b = divisao.partes
         partes.append(
-            f"Dica: dividindo a feira entre {a.nome} e {b.nome} você paga "
+            f"Dica: dividindo a compra entre {a.nome} e {b.nome} você gasta "
             f"{_brl(divisao.custo_total)} (economia de {_brl(divisao.economia_vs_melhor_unico)})."
         )
     if sem_dados:
-        partes.append(f"{sem_dados} lojas próximas ainda não têm preços no Ofertão.")
+        partes.append(f"Outros {sem_dados} mercados próximos ainda não têm preços para esta lista.")
     return " ".join(partes)

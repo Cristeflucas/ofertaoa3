@@ -42,7 +42,12 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/", include_in_schema=False)
-def index() -> FileResponse:
+def landing() -> FileResponse:
+    return FileResponse(STATIC_DIR / "landing.html")
+
+
+@app.get("/app", include_in_schema=False)
+def pagina_principal() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
@@ -112,11 +117,20 @@ def listar_itens(
         ]
 
     # Menor preço considerando somente os mercados dentro do raio (se informado)
-    mercados_raio = _mercados_no_raio(session, lat, lon, raio_km) if (lat is not None and lon is not None) else []
-    stmt_min = select(Preco.produto_id, func.min(Preco.preco)).group_by(Preco.produto_id)
-    if mercados_raio:
-        stmt_min = stmt_min.where(col(Preco.mercado_id).in_([m.id for m in mercados_raio]))
-    min_por_prod = dict(session.exec(stmt_min).all())
+    if lat is not None and lon is not None:
+        mercados_raio = _mercados_no_raio(session, lat, lon, raio_km)
+        if mercados_raio:
+            stmt_min = (
+                select(Preco.produto_id, func.min(Preco.preco))
+                .where(col(Preco.mercado_id).in_([m.id for m in mercados_raio]))
+                .group_by(Preco.produto_id)
+            )
+            min_por_prod = dict(session.exec(stmt_min).all())
+        else:
+            min_por_prod = {}
+    else:
+        stmt_min = select(Preco.produto_id, func.min(Preco.preco)).group_by(Preco.produto_id)
+        min_por_prod = dict(session.exec(stmt_min).all())
 
     min_por_grupo: dict[int, float] = {}
     img_por_grupo: dict[int, str] = {}
@@ -211,7 +225,7 @@ def recomendar_mercado(pedido: PedidoRecomendacao, session: Session = Depends(ge
         m for m in mercados_atuais
         if distancia_rua_km(pedido.lat, pedido.lon, m.lat, m.lon) <= pedido.raio_km
     ]
-    if len(proximos) < 3 and any(m.osm_id for m in mercados_atuais):
+    if len(proximos) < 3 and (not mercados_atuais or any(m.osm_id for m in mercados_atuais)):
         try:
             osm.importar_mercados_regiao(session, pedido.lat, pedido.lon, min(pedido.raio_km, 15.0))
             mercados_atuais = list(session.exec(select(Mercado)).all())

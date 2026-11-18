@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ofertão — Descubra onde sua compra sai mais barata</title>
+<meta name="description" content="Monte sua lista de supermercado e descubra qual loja perto de você sai mais barata de verdade, já contando o deslocamento.">
+<style>
+  :root {
+    --azul: #123a8c;
+    --azul-escuro: #0b2560;
+    --azul-suave: #eef3ff;
+    --laranja: #f26b1d;
+    --laranja-hover: #df5b10;
+    --laranja-claro: #fff1e8;
+    --verde: #1a9b55;
+    --verde-claro: #eaf8f0;
+    --fundo: #f7f9fc;
+    --card: #ffffff;
+    --texto: #182135;
+    --suave: #5f6b82;
+    --borda: #e3e8f2;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--fundo);
+    color: var(--texto);
+    line-height: 1.5;
+  }
+  a { color: inherit; text-decoration: none; }
+
+  /* Navegação */
+  .nav-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--borda);
+  }
+  nav {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .logo {
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.6px;
+    color: var(--azul-escuro);
+  }
+  .logo span { color: var(--laranja); }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--suave);
+  }
+  .nav-links a:hover { color: var(--azul); }
+  .btn-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--laranja);
+    color: #fff;
+    font-weight: 700;
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 0.96rem;
+    border: 0;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(242, 107, 29, 0.25);
+    transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+  }
+  .btn-cta:hover {
+    background: var(--laranja-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(242, 107, 29, 0.32);
+  }
+  .btn-cta.grande {
+    padding: 16px 30px;
+    font-size: 1.08rem;
+    border-radius: 14px;
+  }
+  .btn-sec {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 24px;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--azul);
+    background: #fff;
+    border: 1px solid var(--borda);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .btn-sec:hover {
+    border-color: var(--azul);
+    background: var(--azul-suave);
+  }
+
+  /* Hero */
+  .hero {
+    background: radial-gradient(circle at 85% 20%, rgba(242, 107, 29, 0.08), transparent 45%),
+                radial-gradient(circle at 10% 80%, rgba(18, 58, 140, 0.07), transparent 40%),
+                #fff;
+    border-bottom: 1px solid var(--borda);
+  }
+  .hero-inner {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 56px 24px 68px;
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--verde-claro);
+    color: var(--verde);
+    font-weight: 700;
+    font-size: 0.84rem;
+    padding: 6px 14px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  .hero h1 {
+    margin: 0 0 18px;
+    font-size: clamp(2.1rem, 4vw, 3.15rem);
+    line-height: 1.12;
+    letter-spacing: -1px;
+    color: var(--azul-escuro);
+  }
+  .hero h1 mark {
+    background: none;
+    color: var(--laranja);
+  }
+  .hero p {
+    margin: 0 0 28px;
+    font-size: 1.12rem;
+    color: var(--suave);
+    max-width: 540px;
+  }
+  .hero-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+  }
+  .hero-garantias {
+    margin-top: 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-size: 0.88rem;
+    color: var(--suave);
+  }
+  .hero-garantias span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Cartão de exemplo no Hero */
+  .preview-card {
+    background: var(--card);
+    border: 1px solid var(--borda);
+    border-radius: 22px;
+    padding: 22px;
+    box-shadow: 0 18px 46px rgba(11, 37, 96, 0.1);
+  }
+  .preview-topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--borda);
+    margin-bottom: 14px;
+  }
+  .preview-topo strong {
+    color: var(--azul-escuro);
+    font-size: 1rem;
+  }
+  .preview-pill {
+    background: var(--azul-suave);
+    color: var(--azul);
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .preview-itens {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .preview-item {
+    background: var(--fundo);
+    border: 1px solid var(--borda);
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 0.8rem;
+    color: var(--texto);
+  }
+  .preview-loja {
+    border: 1px solid var(--borda);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .preview-loja + .preview-loja { margin-top: 10px; }
+  .preview-loja.melhor {
+    border-color: var(--verde);
+    background: var(--verde-claro);
+  }
+  .preview-loja .nome {
+    font-weight: 700;
+    color: var(--azul-escuro);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .preview-loja .tag-melhor {
+    background: var(--verde);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .preview-loja small {
+    display: block;
+    color: var(--suave);
+    font-size: 0.8rem;
+    margin-top: 2px;
+  }
+  .preview-loja .preco {
+    text-align: right;
+    font-weight: 800;
+    font-size: 1.15rem;
+    color: var(--verde);
+    white-space: nowrap;
+  }
+  .preview-loja:not(.melhor) .preco {
+    color: var(--suave);
+    font-size: 1rem;
+  }
+  .preview-economia {
+    margin-top: 14px;
+    background: var(--laranja-claro);
+    border-left: 4px solid var(--laranja);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 0.88rem;
+    color: var(--texto);
+  }
+
+  /* Seções */
+  .secao {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 64px 24px;
+  }
+  .secao-cab {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto 42px;
+  }
+  .secao-cab h2 {
+    margin: 0 0 10px;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    color: var(--azul-escuro);
+    letter-spacing: -0.5px;
+  }
+  .secao-cab p {
+    margin: 0;
+    color: var(--suave);
+    font-size: 1.02rem;
+  }
+
+  /* Faixa de números */
+  .numeros {
+    background: var(--azul-escuro);
+    color: #fff;
+  }
+  .numeros-inner {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 28px 24px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    text-align: center;
+  }
+  .numero-box strong {
+    display: block;
+    font-size: 1.75rem;
+    color: #fff;
+  }
+  .numero-box span {
+    font-size: 0.92rem;
+    color: #c7d5f8;
+  }
+
+  /* Passos */
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px;
+  }
+  .passo-card, .beneficio-card, .faq-item {
+    background: var(--card);
+    border: 1px solid var(--borda);
+    border-radius: 18px;
+    padding: 26px;
+    box-shadow: 0 4px 14px rgba(18, 58, 140, 0.04);
+  }
+  .passo-num {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: var(--laranja-claro);
+    color: var(--laranja);
+    font-weight: 800;
+    display: grid;
+    place-items: center;
+    margin-bottom: 14px;
+    font-size: 1.05rem;
+  }
+  .passo-card h3, .beneficio-card h3 {
+    margin: 0 0 8px;
+    font-size: 1.12rem;
+    color: var(--azul-escuro);
+  }
+  .passo-card p, .beneficio-card p {
+    margin: 0;
+    color: var(--suave);
+    font-size: 0.95rem;
+  }
+  .beneficio-icone {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+    display: inline-block;
+  }
+
+  /* FAQ */
+  .faq-lista {
+    max-width: 780px;
+    margin: 0 auto;
+    display: grid;
+    gap: 14px;
+  }
+  .faq-item { padding: 20px 24px; }
+  .faq-item h3 {
+    margin: 0 0 6px;
+    font-size: 1.02rem;
+    color: var(--azul-escuro);
+  }
+  .faq-item p {
+    margin: 0;
+    color: var(--suave);
+    font-size: 0.94rem;
+  }
+
+  /* Banner Final */
+  .cta-final {
+    background: linear-gradient(135deg, var(--azul-escuro), var(--azul));
+    color: #fff;
+    border-radius: 24px;
+    padding: 48px 32px;
+    text-align: center;
+    box-shadow: 0 14px 36px rgba(11, 37, 96, 0.18);
+  }
+  .cta-final h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+  }
+  .cta-final p {
+    margin: 0 auto 26px;
+    max-width: 540px;
+    color: #d7e3ff;
+    font-size: 1.05rem;
+  }
+
+  footer {
+    border-top: 1px solid var(--borda);
+    background: #fff;
+    padding: 26px 24px;
+    text-align: center;
+    font-size: 0.88rem;
+    color: var(--suave);
+  }
+  footer a {
+    color: var(--azul);
+    font-weight: 600;
+  }
+
+  .cta-fixo { display: none; }
+  @media (max-width: 900px) {
+    .cta-fixo { display: block; position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 50; }
+    .cta-fixo .btn-cta { width: 100%; padding: 16px; font-size: 1.05rem; }
+    body { padding-bottom: 84px; }
+    .hero-inner { grid-template-columns: 1fr; padding: 36px 20px 48px; gap: 32px; }
+    .grid-3, .grid-2, .numeros-inner { grid-template-columns: 1fr; }
+    .nav-links { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="nav-wrap">
+  <nav>
+    <a href="/" class="logo">Ofer<span>tão</span></a>
+    <div class="nav-links">
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#vantagens">Por que usar</a>
+      <a href="#duvidas">Dúvidas</a>
+    </div>
+    <a href="/app" class="btn-cta">Economize já</a>
+  </nav>
+</div>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <span class="eyebrow">Comparador gratuito de supermercados</span>
+      <h1>Descubra onde sua feira sai <mark>mais barata</mark> de verdade</h1>
+      <p>
+        Monte sua lista de compras e veja em segundos qual supermercado perto de você tem o menor valor total — já somando o gasto de ida e volta.
+      </p>
+      <div class="hero-acoes">
+        <a href="/app" class="btn-cta grande">💰 Economize já, faça sua cotação</a>
+        <a href="#como-funciona" class="btn-sec">Ver como funciona</a>
+      </div>
+      <div class="hero-garantias">
+        <span>✓ Sem cadastro obrigatório</span>
+        <span>✓ Funciona em todo o Brasil</span>
+        <span>✓ Conta ida e volta</span>
+      </div>
+    </div>
+
+    <div class="preview-card" aria-hidden="true">
+      <div class="preview-topo">
+        <strong>Exemplo de comparação</strong>
+        <span class="preview-pill">Raio de 5 km</span>
+      </div>
+      <div class="preview-itens">
+        <span class="preview-item">Arroz 5kg</span>
+        <span class="preview-item">Feijão 1kg</span>
+        <span class="preview-item">Café 250g</span>
+        <span class="preview-item">Leite 1L</span>
+        <span class="preview-item">Óleo 900ml</span>
+      </div>
+      <div class="preview-loja melhor">
+        <div>
+          <div class="nome">Atacadão da Região <span class="tag-melhor">1º lugar</span></div>
+          <small>Produtos: R$ 58,40 · Ida e volta: R$ 2,40 (1,5 km)</small>
+        </div>
+        <div class="preco">R$ 60,80</div>
+      </div>
+      <div class="preview-loja">
+        <div>
+          <div class="nome">Supermercado do Bairro</div>
+          <small>Produtos: R$ 71,90 · Ida e volta: R$ 1,20 (0,8 km)</small>
+        </div>
+        <div class="preco">R$ 73,10</div>
+      </div>
+      <div class="preview-economia">
+        <strong>Economia real de R$ 12,30</strong> nesta compra, mesmo andando um pouco mais.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="numeros">
+  <div class="numeros-inner">
+    <div class="numero-box">
+      <strong id="numMercados">Centenas</strong>
+      <span>Supermercados mapeados perto de você</span>
+    </div>
+    <div class="numero-box">
+      <strong>Ida e volta</strong>
+      <span>Cálculo real com a distância até a loja</span>
+    </div>
+    <div class="numero-box">
+      <strong>100% grátis</strong>
+      <span>Compare quantas listas quiser, sem pagar nada</span>
+    </div>
+  </div>
+</section>
+
+<section class="secao" id="como-funciona">
+  <div class="secao-cab">
+    <h2>Como funciona em 3 passos simples</h2>
+    <p>Sem planilhas, sem precisar abrir vários aplicativos e sem complicação.</p>
+  </div>
+  <div class="grid-3">
+    <div class="passo-card">
+      <div class="passo-num">1</div>
+      <h3>Informe onde você está</h3>
+      <p>Digite seu CEP ou bairro, ou toque em "usar minha localização".</p>
+    </div>
+    <div class="passo-card">
+      <div class="passo-num">2</div>
+      <h3>Escolha os produtos</h3>
+      <p>Digite o que vai comprar ou use a cesta básica pronta com um clique.</p>
+    </div>
+    <div class="passo-card">
+      <div class="passo-num">3</div>
+      <h3>Veja onde compensa mais</h3>
+      <p>Mostramos o mercado mais barato pra você, já contando a ida e a volta.</p>
+    </div>
+  </div>
+</section>
+
+<section class="secao" id="vantagens" style="padding-top: 10px;">
+  <div class="secao-cab">
+    <h2>Feito para economizar dinheiro e tempo</h2>
+    <p>Olhar só o preço da prateleira engana. O Ofertão faz a conta completa por você.</p>
+  </div>
+  <div class="grid-2">
+    <div class="beneficio-card">
+      <span class="beneficio-icone">🚗</span>
+      <h3>Deslocamento entra na conta</h3>
+      <p>De nada adianta um produto estar R$ 2 mais barato se o mercado fica longe. Somamos o custo de ida e volta para você saber o preço real.</p>
+    </div>
+    <div class="beneficio-card">
+      <span class="beneficio-icone">🛒</span>
+      <h3>Qualquer marca ou a sua preferida</h3>
+      <p>Quer só o arroz mais barato? Escolha o item genérico. Faz questão de uma marca? Busque pelo nome exato dela.</p>
+    </div>
+    <div class="beneficio-card">
+      <span class="beneficio-icone">💡</span>
+      <h3>Aviso quando vale dividir a feira</h3>
+      <p>Se passar em dois mercados próximos fizer você economizar ainda mais, o sistema calcula a rota e te mostra.</p>
+    </div>
+    <div class="beneficio-card">
+      <span class="beneficio-icone">📍</span>
+      <h3>Supermercados reais no mapa</h3>
+      <p>Veja exatamente onde fica cada loja perto da sua casa, com endereço e distância aproximada.</p>
+    </div>
+  </div>
+</section>
+
+<section class="secao" id="duvidas" style="padding-top: 10px;">
+  <div class="secao-cab">
+    <h2>Perguntas frequentes</h2>
+    <p>Tudo explicado de forma direta antes de você começar.</p>
+  </div>
+  <div class="faq-lista">
+    <div class="faq-item">
+      <h3>Preciso criar conta ou pagar alguma coisa?</h3>
+      <p>Não. O Ofertão é totalmente gratuito e funciona na hora, sem cadastro.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Como os preços são comparados?</h3>
+      <p>Usamos preços publicados por redes de supermercados, ofertas de encartes e referências da sua região para estimar onde sua lista completa sai mais em conta.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Funciona na minha cidade?</h3>
+      <p>Sim! Você pode digitar qualquer cidade, bairro ou CEP do Brasil e ajustar a distância máxima que topa ir.</p>
+    </div>
+  </div>
+</section>
+
+<section class="secao" style="padding-top: 10px;">
+  <div class="cta-final">
+    <h2>Pronto para pagar menos nas suas compras?</h2>
+    <p>Leva menos de 1 minuto: diga onde você está, escolha os produtos e veja o mercado mais barato.</p>
+    <a href="/app" class="btn-cta grande">💰 Economize já, faça sua cotação</a>
+  </div>
+</section>
+
+<div class="cta-fixo"><a href="/app" class="btn-cta">💰 Economize já, faça sua cotação</a></div>
+
+<footer>
+  <strong>Ofertão</strong> — Compare preços de supermercados perto de você · <a href="/app">Fazer minha cotação</a>
+</footer>
+
+<script>
+fetch("/api/status")
+  .then(r => r.ok ? r.json() : null)
+  .then(s => {
+    if (s && s.lojas > 0) {
+      document.getElementById("numMercados").textContent = s.lojas.toLocaleString("pt-BR") + "+";
+    }
+  })
+  .catch(() => {});
+</script>
+</body>
+</html>

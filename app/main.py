@@ -415,3 +415,6 @@ def precos_da_rede(
     if not ids:
         raise HTTPException(404, "Nenhuma loja dessa rede")
     return _gravar_precos_dono(session, list(ids), corpo)
+
+from app.agente import router as agente_router
+app.include_router(agente_router)

@@ -28,9 +28,18 @@ def test_sem_provedor_usa_faq():
     ("vale a pena dividir em duas lojas?", "duas lojas"),
     ("Por que não tem Carrefour?", "Carrefour"),
     ("qual a capital da França?", "Posso ajudar"),
+    ("Como uso o agente de IA?", "Perguntar ao Agente"),
+    ("como funciona o agente?", "Perguntar ao Agente"),
+    ("como usar o site?", "3 passos"),
+    ("dá pra escrever o pedido e falar que só tenho 50 reais?", "Agente de IA"),
 ])
 def test_faq_encontra_resposta(pergunta, trecho):
     assert trecho in chatbot.responder_faq(pergunta)
+
+
+def test_prompt_ensina_o_agente():
+    sistema = chatbot._prompt_sistema(None)
+    assert "AGENTE DE IA" in sistema and "Perguntar ao Agente" in sistema
 
 
 def test_escolha_do_provedor(monkeypatch):

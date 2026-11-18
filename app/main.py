@@ -26,6 +26,20 @@ from app.recommender import recomendar
 from app.schemas import PedidoRecomendacao, PrecosDono, RespostaRecomendacao
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+if not STATIC_DIR.exists():
+    for _alt in [Path("static").resolve(), Path("/var/task/static").resolve()]:
+        if _alt.exists():
+            STATIC_DIR = _alt
+            break
+
+def _obter_arquivo_estatico(nome: str) -> Path:
+    caminho = STATIC_DIR / nome
+    if caminho.exists():
+        return caminho
+    for _alt in [Path("static") / nome, Path("/var/task/static") / nome]:
+        if _alt.exists():
+            return _alt.resolve()
+    return caminho
 TOKEN_ADMIN = os.getenv("OFERTAO_ADMIN_TOKEN")
 
 
@@ -42,13 +56,17 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/", include_in_schema=False)
+@app.get("/api", include_in_schema=False)
+@app.get("/api/index.py", include_in_schema=False)
+@app.get("/index.py", include_in_schema=False)
 def landing() -> FileResponse:
-    return FileResponse(STATIC_DIR / "landing.html")
+    return FileResponse(_obter_arquivo_estatico("landing.html"))
 
 
 @app.get("/app", include_in_schema=False)
+@app.get("/api/app", include_in_schema=False)
 def pagina_principal() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(_obter_arquivo_estatico("index.html"))
 
 
 @app.get("/api/status")
@@ -300,8 +318,9 @@ def _exigir_token(x_token: str = Header(default="")) -> None:
 
 
 @app.get("/admin", include_in_schema=False)
+@app.get("/api/admin", include_in_schema=False)
 def pagina_admin() -> FileResponse:
-    return FileResponse(STATIC_DIR / "admin.html")
+    return FileResponse(_obter_arquivo_estatico("admin.html"))
 
 
 @app.get("/api/redes")

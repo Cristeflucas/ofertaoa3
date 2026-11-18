@@ -16,6 +16,9 @@ dependencies = [
 [tool.setuptools]
 packages = ["app", "app.coletores"]
 
+[tool.vercel]
+entrypoint = "main:app"
+
 [dependency-groups]
 dev = [
     "pytest>=8",
